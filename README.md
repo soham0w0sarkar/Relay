@@ -1,135 +1,299 @@
-# Turborepo starter
+# Relay
 
-This Turborepo starter is maintained by the Turborepo core team.
+> A deterministic, CRDT-based collaboration engine with fast indexing and a minimal API.
 
-## Using this example
+---
 
-Run the following command:
+## ✨ Overview
 
-```sh
-npx create-turbo@latest
-```
+Relay is a modular, operation-based collaboration system designed for building real-time editors.
 
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
+It is built around a simple idea:
 
 ```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+state + operation → new state
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Relay focuses on:
+
+* **Deterministic CRDT merging**
+* **Efficient text indexing (skip list)**
+* **Minimal public API**
+* **Layered, extensible architecture**
+
+---
+
+## 🧠 Core Philosophy
+
+Relay treats collaboration as a **state machine**:
+
+* The document is just **data**
+* Changes are expressed as **operations**
+* The system evolves via **pure transitions**
 
 ```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+Document = state
+apply()   = transition
+getText() = projection
 ```
 
-### Develop
+---
 
-To develop all apps and packages, run the following command:
+## 🔥 Features
 
-```
-cd my-turborepo
+* ⚡ Operation-based CRDT (no OT)
+* 🔁 Deterministic conflict resolution
+* 📦 Minimal API surface
+* 🚀 O(log n) indexing via skip list
+* 🪦 Tombstone-based deletion
+* 🔌 Transport-agnostic sync layer
+* 🧩 Editor-agnostic core
 
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
+---
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## 📦 Monorepo Structure
 
 ```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+relay/
+├── apps/
+│   ├── demo/
+│   └── playground/
+│
+├── packages/
+│   ├── core/        → CRDT engine
+│   ├── sync/        → replica coordination
+│   ├── transport/   → networking
+│   ├── presence/    → cursors, awareness
+│   └── react/       → UI bindings
 ```
 
-### Remote Caching
+---
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+## 🏗️ Architecture
 
 ```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+Editor UI
+   ↓
+React bindings
+   ↓
+Presence
+   ↓
+Transport
+   ↓
+Sync
+   ↓
+Core (CRDT engine)
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+### Layer Responsibilities
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+| Layer     | Responsibility                  |
+| --------- | ------------------------------- |
+| core      | State + operations (CRDT logic) |
+| sync      | Replica reconciliation          |
+| transport | Message delivery                |
+| presence  | Ephemeral user state            |
+| react     | UI integration                  |
+
+---
+
+## 🧩 Core API
+
+Relay intentionally exposes a **minimal API**:
+
+```ts
+createDocument()
+apply(doc, operation)
+getText(doc)
+```
+
+### Example
+
+```ts
+const doc = createDocument()
+
+const next = apply(doc, {
+  type: "insert",
+  position: 0,
+  content: "H"
+})
+
+console.log(getText(next)) // "H"
+```
+
+---
+
+## 🧠 Data Model
+
+### CRDT Node (source of truth)
 
 ```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+{
+  id: (clientId, clock)
+  content: string
+  deleted: boolean
+}
 ```
 
-## Useful Links
+* Globally unique
+* Deterministically ordered
+* Never physically removed (tombstones)
 
-Learn more about the power of Turborepo:
+---
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+### Skip List (index layer)
+
+```
+{
+  ref → CRDT node
+  next[]
+  span[]
+}
+```
+
+* Used for fast index lookup
+* Not synced across peers
+* Rebuilt locally
+* Level 0 = visible ordering
+
+---
+
+## ⚠️ Important Design Rules
+
+### 1. Identity is CRDT-owned
+
+```
+id = (clientId, clock)
+```
+
+Skip list nodes **must not introduce new IDs**.
+
+---
+
+### 2. Skip list is an index, not storage
+
+* CRDT = truth
+* Skip list = performance layer
+
+---
+
+### 3. Deletes are tombstones
+
+```
+node.deleted = true
+```
+
+* Nodes are not removed
+* Index spans are adjusted instead
+
+---
+
+### 4. Operations are the only source of change
+
+```
+No direct mutation
+Only apply(operation)
+```
+
+---
+
+## ✍️ Input Handling
+
+User input (e.g. `<textarea>` or editor) produces:
+
+```
+InputEvent → Operation → apply()
+```
+
+Example:
+
+```ts
+{
+  type: "insert",
+  position: 5,
+  content: "a"
+}
+```
+
+---
+
+## ⚡ Performance
+
+Relay treats performance as a first-class concern.
+
+### Indexing
+
+* Skip list with spans
+* Enables:
+
+  * index → node lookup in **O(log n)**
+  * fast insert/delete
+
+### CRDT Optimizations (inspired by Yjs)
+
+* Merge adjacent inserts
+* Remove content from deleted nodes
+* Optional garbage collection of tombstones
+
+---
+
+## 🔄 Sync Model
+
+Relay uses an operation-based sync protocol.
+
+### State Vector
+
+```
+clientId → clock
+```
+
+Used to:
+
+* determine missing operations
+* sync efficiently between peers
+
+---
+
+## 💾 Persistence Strategy
+
+Relay does **not manage storage**.
+
+Instead:
+
+```
+DB → load document
+Relay → sync live ops
+Client → persist final state
+```
+
+---
+
+## 🧠 Mental Model
+
+```
+Relay = CRDT engine + sync + transport
+
+core       → math
+sync       → coordination
+transport  → pipes
+presence   → UX
+react      → integration
+```
+
+---
+
+## 🚀 Future Work
+
+* Rich text support
+* Editor bindings (ProseMirror, Slate, etc.)
+* Better GC strategies
+* Binary encoding for ops
+* Undo/redo layer
+
+---
+
+## 🧩 Summary
+
+Relay is:
+
+> A deterministic CRDT state machine with a skip-list index layered on top for fast collaborative editing.

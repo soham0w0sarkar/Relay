@@ -1,0 +1,21 @@
+{
+  "name": "@repo/core",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "bun test"
+  },
+  "exports": {},
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "fast-check": "^4.6.0",
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "tsup": "^8.5.1"
+  }
+}
