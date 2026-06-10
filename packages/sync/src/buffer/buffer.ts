@@ -4,14 +4,17 @@ import {
   toKey,
   type InsertOperation,
   type DeleteOperation,
+  apply,
 } from "@repo/core";
-import type { Operation } from "./types";
 
-export const waiting = new Map<OperationKey, Set<Operation>>();
+const waiting = new Map<OperationKey, Set<InsertOperation>>();
+const buffered = new Map<OperationKey, InsertOperation>();
+const pendingDeleteOps = new Map<OperationKey, DeleteOperation>();
 
-export const buffered = new Map<OperationKey, Operation>();
-
-const getMissingDeps = (doc: Document, op: Operation): OperationKey[] => {
+const getMissingDeps = (
+  doc: Document,
+  op: InsertOperation | DeleteOperation,
+): OperationKey[] => {
   const missing = [];
 
   if (op.type === "insert") {
@@ -21,14 +24,10 @@ const getMissingDeps = (doc: Document, op: Operation): OperationKey[] => {
       missing.push(toKey(op.rightOrigin));
   }
 
-  if (op.type === "delete") {
-    if (!doc.store.nodes.has(toKey(op.target))) missing.push(toKey(op.target));
-  }
-
   return missing;
 };
 
-export const addToBuffer = (doc: Document, op: Operation) => {
+export const addToBuffer = (doc: Document, op: InsertOperation) => {
   buffered.set(toKey(op.id), op);
 
   const missing = getMissingDeps(doc, op);
@@ -38,7 +37,48 @@ export const addToBuffer = (doc: Document, op: Operation) => {
   }
 };
 
-export const canApply = (doc: Document, op: Operation): boolean => {
+export const addToDeleteBuffer = (op: DeleteOperation) => {
+  pendingDeleteOps.set(toKey(op.target), op);
+};
+
+export const deleteFromDeleteBuffer = (op: DeleteOperation) => {
+  pendingDeleteOps.delete(toKey(op.target));
+};
+
+export const flush = (doc: Document, unblockedKey: OperationKey) => {
+  const waitingQueue = [...(waiting.get(unblockedKey) ?? [])];
+
+  while (waitingQueue.length) {
+    const op = waitingQueue.shift()!;
+    if (!canApply(doc, op)) continue;
+
+    apply(doc, op);
+    cleanUp(op);
+
+    const next = waiting.get(toKey(op.id)) ?? [];
+    waitingQueue.push(...next);
+  }
+};
+
+const cleanUp = (op: InsertOperation) => {
+  buffered.delete(toKey(op.id));
+
+  const deps = [toKey(op.leftOrigin)];
+  if (op.rightOrigin) deps.push(toKey(op.rightOrigin));
+
+  for (let dep of deps) {
+    const set = waiting.get(dep);
+    if (!set) continue;
+
+    set.delete(op);
+    if (set.size === 0) waiting.delete(dep);
+  }
+};
+
+export const canApply = (
+  doc: Document,
+  op: InsertOperation | DeleteOperation,
+): boolean => {
   if (op.type === "insert") return canApplyInsert(doc, op);
 
   return canApplyDelete(doc, op);

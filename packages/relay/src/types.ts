@@ -1,5 +1,5 @@
 import type { ClientId } from "@repo/core";
 
-export type timerId = number | undefined;
+export type TimerId = number | undefined;
 
-export type peersReq = ClientId[];
+export type PeersReq = ClientId[];
