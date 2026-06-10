@@ -190,7 +190,7 @@ function buildOps(bytes: Uint8Array): StoreOp[] {
       }
 
       const victim = alive[(bytes[i++] ?? 0) % alive.length]!;
-      const op = createDeleteOperation(victim, victim);
+      const op = createDeleteOperation(victim);
       removeFromStore(ref, op);
       ops.push(op);
     }
@@ -239,7 +239,7 @@ describe("NodeStore — unit", () => {
     const id = generateOperationId(CLIENT, 0);
     insertIntoStore(store, createInsertOperation(id, "x", ROOT_ID, null));
     assert.strictEqual(getText(store), "x");
-    removeFromStore(store, createDeleteOperation(id, id));
+    removeFromStore(store, createDeleteOperation(id));
     assert.strictEqual(getText(store), "");
     assert.ok(store.nodes.has(toKey(id)));
     assert.strictEqual(store.nodes.get(toKey(id))?.tombstone, true);
@@ -250,7 +250,7 @@ describe("NodeStore — unit", () => {
     const id0 = generateOperationId(CLIENT, 0);
     const id1 = generateOperationId(CLIENT, 1);
     insertIntoStore(store, createInsertOperation(id0, "a", ROOT_ID, null));
-    removeFromStore(store, createDeleteOperation(id0, id0));
+    removeFromStore(store, createDeleteOperation(id0));
     insertIntoStore(store, createInsertOperation(id1, "b", id0, null));
     assert.strictEqual(getText(store), "b");
   });
@@ -259,7 +259,7 @@ describe("NodeStore — unit", () => {
     const store = makeStore();
     const missing = generateOperationId(CLIENT, 99);
     assert.throws(
-      () => removeFromStore(store, createDeleteOperation(missing, missing)),
+      () => removeFromStore(store, createDeleteOperation(missing)),
       /not found/,
     );
   });
@@ -395,7 +395,6 @@ describe("NodeStore — load", () => {
       removeFromStore(
         store,
         createDeleteOperation(
-          generateOperationId(CLIENT3, i),
           generateOperationId(CLIENT3, i),
         ),
       );

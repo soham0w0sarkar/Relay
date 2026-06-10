@@ -1,5 +1,5 @@
 {
-  "name": "@repo/core",
+  "name": "@repo/relay",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -9,20 +9,15 @@
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "test": "bun test"
   },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^25.9.2",
     "fast-check": "^4.6.0",
     "typescript": "latest"
   },
   "dependencies": {
+    "@repo/core": "workspace:*",
+    "@repo/sync": "workspace:*",
+    "@repo/transport": "workspace:*",
     "tsup": "^8.5.1"
   }
 }

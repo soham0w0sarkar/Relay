@@ -10,6 +10,5 @@ export type InsertOperation = {
 
 export type DeleteOperation = {
   type: "delete";
-  id: OperationId;
   target: OperationId;
 };

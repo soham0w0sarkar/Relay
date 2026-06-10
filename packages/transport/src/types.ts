@@ -1,4 +1,4 @@
-import type { DeleteOperation, InsertOperation } from "@repo/core";
+import type { ClientId, DeleteOperation, InsertOperation } from "@repo/core";
 import type { StateVector } from "@repo/sync";
 import type { webSocketTransport } from "./webSocketTransport/types";
 
@@ -12,10 +12,12 @@ export type Message =
   | {
       type: "sync-request";
       vector: StateVector;
+      clientId: ClientId;
     }
   | {
       type: "sync-response";
-      ops: InsertOperation[] | DeleteOperation[];
+      ops: (InsertOperation | DeleteOperation)[];
+      clientIds: ClientId[];
     };
 
 export type Transport = {

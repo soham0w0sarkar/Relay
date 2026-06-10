@@ -11,7 +11,6 @@
     "exactOptionalPropertyTypes": true,
     "noImplicitReturns": true,
     "verbatimModuleSyntax": true,
-    "types": ["node"],
     "lib": ["es2022", "DOM"]
   },
   "include": ["src"],

@@ -1,5 +1,6 @@
-import type { OperationId } from "@repo/core";
+import type { Document, OperationId } from "@repo/core";
 import type { StateVector } from "./type";
+import type { Operation } from "../buffer";
 
 export const update = (sv: StateVector, id: OperationId) => {
   const [clientId, clock] = id;
@@ -9,17 +10,18 @@ export const update = (sv: StateVector, id: OperationId) => {
 };
 
 export const missingOps = (
+  doc: Document,
   mineSv: StateVector,
   theirSv: StateVector,
 ): OperationId[] => {
-  const result: OperationId[] = []
+  const missingOps: OperationId[] = [];
 
   mineSv.forEach((myClock, clientId) => {
-    const theirClock = theirSv.get(clientId) ?? -1
+    const theirClock = theirSv.get(clientId) ?? -1;
     for (let clock = theirClock + 1; clock <= myClock; clock++) {
-      result.push([clientId, clock])
+      missingOps.push([clientId, clock]);
     }
-  })
+  });
 
-  return result
-}
+  return missingOps;
+};

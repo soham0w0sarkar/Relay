@@ -85,7 +85,7 @@ export const insert = (nd: NodeStore, op: InsertOperation) => {
 export const remove = (nd: NodeStore, op: DeleteOperation) => {
   const node = nd.nodes.get(toKey(op.target));
   if (!node) {
-    throw new Error(`node ${toKey(op.id)} not found`);
+    throw new Error(`node ${toKey(op.target)} not found`);
   }
 
   node.tombstone = true;
