@@ -1,5 +1,11 @@
 # @weavo/core
 
+## 1.2.0
+
+### Minor Changes
+
+- Add snapshot and delta persistence for document state restoration. Introduce `takeSnapshot`, `restoreFromSnapshot`, and `weavo.snapshot()` APIs in @weavo/core and @weavo/client.
+
 ## 1.1.0
 
 ### Minor Changes

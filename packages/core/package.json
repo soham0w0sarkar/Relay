@@ -1,6 +1,6 @@
 {
   "name": "@weavo/core",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "CRDT core for Weavo collaborative text editing",
   "keywords": [
     "weavo",
