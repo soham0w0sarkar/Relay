@@ -251,7 +251,7 @@ const weavo = createWeavo(raw);
 ## Development
 
 ```bash
-# from packages/client
+# from packages/clint
 bun test
 bun run build
 ```
