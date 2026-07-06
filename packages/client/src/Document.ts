@@ -166,7 +166,6 @@ export const createWeavo = (
   return {
     bind,
     textSubscribe: subscription.subscribe,
-    /** Full document checkpoint — store in any DB. */
     snapshot: (): DocumentSnapshot => takeSnapshot(doc, sv),
     disconnect: () => transport.disconnect(),
   };

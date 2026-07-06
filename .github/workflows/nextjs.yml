@@ -1,11 +1,12 @@
 # Deploy the Weavo demo (apps/demo) to GitHub Pages.
-# Turborepo builds @weavo/* workspace packages, then static-exports the Next.js app.
+# Runs on @weavo/* release tags (same as npm publish) or manual dispatch.
 
 name: Deploy Weavo demo to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    tags:
+      - "@weavo/*"
   workflow_dispatch:
 
 permissions:
@@ -14,8 +15,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-${{ github.sha }}
+  cancel-in-progress: true
 
 jobs:
   build:

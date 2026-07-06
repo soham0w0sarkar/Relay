@@ -160,7 +160,6 @@ const advanceStateVector = (sv: Map<ClientId, number>, id: OperationId) => {
   if (clock > current) sv.set(clientId, clock);
 };
 
-/** Replay ops on top of a restored snapshot (base + delta). */
 export const replayOperations = (
   doc: Document,
   stateVector: Map<ClientId, number>,
@@ -172,7 +171,6 @@ export const replayOperations = (
   }
 };
 
-/** Restore snapshot then replay delta ops. */
 export const restoreFromStorage = (
   snapshot: DocumentSnapshot,
   delta: Operation[] = [],
