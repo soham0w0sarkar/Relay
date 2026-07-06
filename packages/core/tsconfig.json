@@ -1,17 +1,5 @@
 {
-  "extends": "@repo/typescript-config/base.json",
-  "compilerOptions": {
-    "outDir": "dist",
-    "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noFallthroughCasesInSwitch": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitReturns": true,
-    "verbatimModuleSyntax": true,
-    "types": ["node", "bun-types"],
-    "lib": ["es2022", "DOM"]
-  },
+  "extends": "@repo/typescript-config/bun-test.json",
   "include": ["src", "test"],
   "exclude": ["node_modules", "dist"]
 }
