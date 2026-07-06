@@ -1,12 +1,12 @@
 # Deploy the Weavo demo (apps/demo) to GitHub Pages.
-# Runs on @weavo/* release tags (same as npm publish) or manual dispatch.
+# Runs on v* release tags or manual dispatch.
 
 name: Deploy Weavo demo to GitHub Pages
 
 on:
   push:
     tags:
-      - "@weavo/*"
+      - "v*"
   workflow_dispatch:
 
 permissions:

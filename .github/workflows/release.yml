@@ -3,7 +3,8 @@ name: Release packages
 on:
   push:
     tags:
-      - "@weavo/*"
+      - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: read
