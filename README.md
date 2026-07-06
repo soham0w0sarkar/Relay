@@ -6,7 +6,6 @@
 > Tiny, framework-agnostic real-time collaborative text editing.
 
 <p align="center">
-  <img src="docs/assets/weavo-demo-mobile.gif" height="420" alt="Weavo demo on mobile" />
   <img src="docs/assets/weavo-demo-desktop.gif" height="420" alt="Weavo demo on desktop" />
 </p>
 <p align="center"><sub>Mobile · Desktop — same room, live sync</sub></p>
