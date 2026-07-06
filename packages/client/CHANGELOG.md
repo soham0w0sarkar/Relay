@@ -1,5 +1,15 @@
 # @weavo/client
 
+## 1.2.1
+
+### Patch Changes
+
+- updating tests
+- Updated dependencies
+  - @weavo/core@1.2.1
+  - @weavo/sync@1.1.1
+  - @weavo/transport@1.1.1
+
 ## 1.2.0
 
 ### Minor Changes
