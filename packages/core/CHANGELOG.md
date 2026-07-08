@@ -1,5 +1,11 @@
 # @weavo/core
 
+## 2.0.0
+
+### Major Changes
+
+- fix:skiplist findindex logic error, was doing linear search.
+
 ## 1.2.1
 
 ### Patch Changes

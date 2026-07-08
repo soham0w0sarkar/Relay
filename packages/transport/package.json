@@ -1,6 +1,6 @@
 {
   "name": "@weavo/transport",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "WebSocket transport layer for Weavo",
   "keywords": [
     "weavo",
@@ -42,8 +42,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@weavo/core": "^1.2.1",
-    "@weavo/sync": "^1.1.1"
+    "@weavo/core": "^2.0.0",
+    "@weavo/sync": "^1.1.2"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
