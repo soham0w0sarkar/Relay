@@ -1,5 +1,13 @@
 # @weavo/client
 
+## 1.2.2
+
+### Patch Changes
+
+- fix:skiplist logic error of linear search
+- Updated dependencies
+  - @weavo/core@1.2.2
+
 ## 1.2.1
 
 ### Patch Changes

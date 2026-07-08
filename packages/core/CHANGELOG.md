@@ -1,5 +1,11 @@
 # @weavo/core
 
+## 1.2.2
+
+### Patch Changes
+
+- fix:skiplist logic error of linear search
+
 ## 1.2.1
 
 ### Patch Changes
