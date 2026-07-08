@@ -13,7 +13,7 @@
     },
     "apps/demo": {
       "name": "demo",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "dependencies": {
         "@repo/ui": "*",
         "@weavo/client": "workspace:*",
@@ -53,14 +53,21 @@
     "apps/weavo-server": {
       "name": "weavo-server",
       "version": "0.1.0",
+      "dependencies": {
+        "@weavo/client": "workspace:*",
+      },
+      "devDependencies": {
+        "@happy-dom/global-registrator": "^20.10.6",
+        "happy-dom": "^20.10.6",
+      },
     },
     "packages/client": {
       "name": "@weavo/client",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "dependencies": {
-        "@weavo/core": "^1.2.0",
-        "@weavo/sync": "^1.1.0",
-        "@weavo/transport": "^1.1.0",
+        "@weavo/core": "^1.2.1",
+        "@weavo/sync": "^1.1.1",
+        "@weavo/transport": "^1.1.1",
       },
       "devDependencies": {
         "@happy-dom/global-registrator": "^20.10.6",
@@ -74,7 +81,7 @@
     },
     "packages/core": {
       "name": "@weavo/core",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
         "@types/node": "^25.9.2",
@@ -103,9 +110,9 @@
     },
     "packages/sync": {
       "name": "@weavo/sync",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "dependencies": {
-        "@weavo/core": "^1.1.0",
+        "@weavo/core": "^1.2.1",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
@@ -117,10 +124,10 @@
     },
     "packages/transport": {
       "name": "@weavo/transport",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "dependencies": {
-        "@weavo/core": "^1.1.0",
-        "@weavo/sync": "^1.1.0",
+        "@weavo/core": "^1.2.1",
+        "@weavo/sync": "^1.1.1",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
