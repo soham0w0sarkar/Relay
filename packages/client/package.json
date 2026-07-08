@@ -1,6 +1,6 @@
 {
   "name": "@weavo/client",
-  "version": "2.0.0",
+  "version": "1.2.1",
   "description": "Real-time collaborative text editing for the browser — bind a textarea, connect to a WebSocket room, edits sync automatically.",
   "keywords": [
     "weavo",
@@ -45,9 +45,9 @@
     "test:load": "bun test --preload ./test/setup.ts ./test/responseSuppression.load.test.ts"
   },
   "dependencies": {
-    "@weavo/core": "^2.0.0",
-    "@weavo/sync": "^1.1.2",
-    "@weavo/transport": "^1.1.2"
+    "@weavo/core": "^1.2.1",
+    "@weavo/sync": "^1.1.1",
+    "@weavo/transport": "^1.1.1"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.10.6",

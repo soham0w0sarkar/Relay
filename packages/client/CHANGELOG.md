@@ -1,18 +1,5 @@
 # @weavo/client
 
-## 2.0.0
-
-### Major Changes
-
-- fix:skiplist findindex logic error, was doing linear search.
-
-### Patch Changes
-
-- Updated dependencies
-  - @weavo/core@2.0.0
-  - @weavo/sync@1.1.2
-  - @weavo/transport@1.1.2
-
 ## 1.2.1
 
 ### Patch Changes
