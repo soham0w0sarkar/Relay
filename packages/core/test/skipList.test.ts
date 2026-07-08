@@ -10,6 +10,7 @@ import {
 import {
   createSkipList,
   findByIndex,
+  findIndex,
   insert,
   remove,
 } from "../src/skipList";
@@ -37,6 +38,24 @@ describe("SkipList", () => {
 
       assert.strictEqual(sl.length, 0);
       assert.strictEqual(sl.head.refCrdtKey, toKey(ROOT_ID));
+    });
+  });
+
+  describe("findIndex", () => {
+    test("returns -1 for unknown id", () => {
+      const sl = createSkipList();
+      assert.strictEqual(findIndex(sl, makeId()), -1);
+    });
+
+    test("returns index for inserted nodes", () => {
+      const sl = createSkipList();
+      const a = makeId();
+      const b = makeId();
+      insert(sl, 0, a);
+      insert(sl, 1, b);
+
+      assert.strictEqual(findIndex(sl, a), 0);
+      assert.strictEqual(findIndex(sl, b), 1);
     });
   });
 
@@ -196,6 +215,34 @@ describe("SkipList", () => {
       assert.strictEqual(sl.length, 2);
       assert.strictEqual(findByIndex(sl, 0)?.refCrdtKey, toKey(id1));
       assert.strictEqual(findByIndex(sl, 1)?.refCrdtKey, toKey(id2));
+    });
+
+    test("random-height middle inserts and removes stay consistent", () => {
+      Math.random = originalRandom;
+      const sl = createSkipList();
+      const order: OperationId[] = [];
+
+      for (let i = 0; i < 500; i++) {
+        if (order.length === 0 || Math.random() < 0.65) {
+          const idx =
+            order.length === 0
+              ? 0
+              : Math.floor(Math.random() * (order.length + 1));
+          const id = makeId();
+          insert(sl, idx, id);
+          order.splice(idx, 0, id);
+        } else {
+          const idx = Math.floor(Math.random() * order.length);
+          remove(sl, order[idx]!);
+          order.splice(idx, 1);
+        }
+
+        assert.strictEqual(sl.length, order.length);
+        for (let j = 0; j < order.length; j++) {
+          assert.strictEqual(findByIndex(sl, j)?.refCrdtKey, toKey(order[j]!));
+          assert.strictEqual(findIndex(sl, order[j]!), j);
+        }
+      }
     });
   });
 });

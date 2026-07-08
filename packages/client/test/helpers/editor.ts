@@ -77,6 +77,20 @@ export const insertText = (el: HTMLTextAreaElement, text: string) => {
   completeInsert(el, text);
 };
 
+export const pasteText = (el: HTMLTextAreaElement, text: string) => {
+  dispatchBeforeInput(el, "insertFromPaste", text);
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  el.value = el.value.slice(0, start) + text + el.value.slice(end);
+  moveCursor(el, start + text.length);
+  dispatchInput(el, "insertFromPaste", text);
+};
+
+/** Rapid single-character inserts without yielding — simulates fast typing. */
+export const typeFast = (el: HTMLTextAreaElement, text: string) => {
+  for (const char of text) insertText(el, char);
+};
+
 export const seedText = (el: HTMLTextAreaElement, text: string) => {
   moveCursor(el, 0);
   insertText(el, text);
@@ -86,6 +100,8 @@ export const backspace = (el: HTMLTextAreaElement) => {
   const start = el.selectionStart;
   const end = el.selectionEnd;
   const hasSelection = end > start;
+  if (!hasSelection && start === 0) return;
+
   const deleteLen = hasSelection ? end - start : 1;
   const deleteStart = hasSelection ? start : start - deleteLen;
 
@@ -106,6 +122,7 @@ export const deleteForward = (el: HTMLTextAreaElement) => {
   const end = el.selectionEnd;
   const hasSelection = end > start;
   const deleteLen = hasSelection ? end - start : 1;
+  if (!hasSelection && start >= el.value.length) return;
 
   el.dispatchEvent(
     new KeyboardEvent("keydown", { key: "Delete", bubbles: true }),

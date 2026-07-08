@@ -12,6 +12,7 @@ import {
   flushMicrotasks,
   insertText,
   moveCursor,
+  pasteText,
   seedText,
   teardownPeers,
 } from "./helpers/editor";
@@ -310,6 +311,22 @@ describe("editor — before snapshot race", () => {
 
     expect(a.el.value).not.toBe("abcdef");
     expect(a.el.value).toContain("X");
+    teardownPeers(a, b);
+  });
+
+  test("both peers converge after paste replacing a selection", async () => {
+    const { a, b } = await createPeerPair();
+
+    moveCursor(a.el, 0);
+    insertText(a.el, "9l 0z9z4xo8t");
+    await flushMicrotasks();
+
+    moveCursor(a.el, 3, 9);
+    pasteText(a.el, "y78we1");
+    await flushMicrotasks();
+
+    expect(a.el.value).toBe("9l y78we1o8t");
+    expect(b.el.value).toBe("9l y78we1o8t");
     teardownPeers(a, b);
   });
 
