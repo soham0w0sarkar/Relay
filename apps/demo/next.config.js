@@ -4,6 +4,7 @@ const staticExport = process.env.NEXT_STATIC_EXPORT === "1";
 
 const nextConfig = {
   ...(staticExport ? { output: "export" } : {}),
+  allowedDevOrigins: ["*"],
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   transpilePackages: [
