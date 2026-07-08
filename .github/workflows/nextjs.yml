@@ -1,6 +1,6 @@
 # Deploy the Weavo demo (apps/demo) to GitHub Pages.
-# Runs on v* release tags or manual dispatch.
-# Requires github-pages environment to allow tag pattern "v*"
+# Runs on demo@* release tags or manual dispatch.
+# Requires github-pages environment to allow tag pattern "demo@*"
 # (Settings → Environments → github-pages → Deployment branches and tags).
 
 name: Deploy Weavo demo to GitHub Pages
@@ -8,7 +8,7 @@ name: Deploy Weavo demo to GitHub Pages
 on:
   push:
     tags:
-      - "v*"
+      - "demo@*"
   workflow_dispatch:
 
 permissions:

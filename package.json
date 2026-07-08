@@ -21,8 +21,8 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo run build --filter=@weavo/core --filter=@weavo/sync --filter=@weavo/transport --filter=@weavo/client && changeset publish",
-    "release:ci": "turbo run build --filter=@weavo/core --filter=@weavo/sync --filter=@weavo/transport --filter=@weavo/client && changeset publish --no-git-tag",
-    "tag-release": "bash scripts/tag-release.sh"
+    "tag-release": "bash scripts/tag-release.sh",
+    "tag-demo": "bash scripts/tag-demo.sh"
   },
   "workspaces": [
     "apps/*",
