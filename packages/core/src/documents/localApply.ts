@@ -17,15 +17,15 @@ const buildOpFromLocalInput = (
 ): AppliedOp[] => {
   const applied: AppliedOp[] = [];
 
+  for (let i = 0; i < deletedLength; i++) {
+    const op = buildOp(doc, position, "del");
+    applied.push({ op, index: apply(doc, op) });
+  }
+
   for (let i = 0; i < insertedLength; i++) {
     const op = buildOp(doc, position + i, "ins", insertedText[i]);
     applied.push({ op, index: apply(doc, op) });
     doc.counter++;
-  }
-
-  for (let i = 0; i < deletedLength; i++) {
-    const op = buildOp(doc, position, "del");
-    applied.push({ op, index: apply(doc, op) });
   }
 
   return applied;

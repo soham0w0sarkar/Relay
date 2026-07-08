@@ -5,6 +5,7 @@ import {
   onInput as localInput,
   restoreFromStorage,
   takeSnapshot,
+  type ClientId,
   type DocumentSnapshot,
   type Operation,
 } from "@weavo/core";
@@ -26,7 +27,8 @@ import {
 import type { TextChange } from "./types";
 
 export type WeavoOptions = {
-
+  /** Stable per-tab identity. When omitted, a new id is generated. */
+  clientId?: ClientId;
   onOp?: (op: Operation) => void;
   initial?: {
     snapshot: DocumentSnapshot;
@@ -44,12 +46,11 @@ export const createWeavo = (
   urlOrTransport: string | RawTransport,
   options: WeavoOptions = {},
 ) => {
-  const clientId = generateClientId();
-
   const restored = options.initial
     ? restoreFromStorage(options.initial.snapshot, options.initial.delta ?? [])
     : null;
 
+  const clientId = options.clientId ?? generateClientId();
   const doc = restored?.doc ?? createReplica(clientId);
   const sv: StateVector = restored?.stateVector ?? new Map();
   const buffer = createBuffer();
