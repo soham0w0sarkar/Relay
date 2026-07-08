@@ -14,7 +14,10 @@ import {
   shortRoomId,
   storeRoomId,
 } from "./lib/roomId";
-import { clearRoomStorage } from "./lib/roomStorage";
+import {
+  clearClientStorage,
+  getOrCreateClientId,
+} from "./lib/clientStorage";
 import styles from "./page.module.css";
 
 type ServerStatus = "checking" | "ready" | "unavailable";
@@ -26,6 +29,7 @@ export function DemoRoom() {
   const [joinInput, setJoinInput] = useState("");
   const [joinError, setJoinError] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [skipRestoreOnce, setSkipRestoreOnce] = useState(false);
 
   const pingServer = useCallback(async () => {
     setServerStatus("checking");
@@ -47,7 +51,11 @@ export function DemoRoom() {
     pingServer();
   }, [hydrated, pingServer]);
 
-  const enterRoom = useCallback((id: string) => {
+  const enterRoom = useCallback((id: string, fresh: boolean) => {
+    if (fresh) {
+      clearClientStorage(id, getOrCreateClientId());
+      setSkipRestoreOnce(true);
+    }
     storeRoomId(id);
     setRoomId(id);
     setJoinInput("");
@@ -55,9 +63,8 @@ export function DemoRoom() {
   }, []);
 
   const createRoom = useCallback(() => {
-    if (roomId) clearRoomStorage(roomId);
-    enterRoom(createRoomId());
-  }, [enterRoom, roomId]);
+    enterRoom(createRoomId(), true);
+  }, [enterRoom]);
 
   const joinRoom = useCallback(() => {
     const id = parseRoomId(joinInput);
@@ -65,11 +72,12 @@ export function DemoRoom() {
       setJoinError(true);
       return;
     }
-    enterRoom(id);
+    enterRoom(id, true);
   }, [enterRoom, joinInput]);
 
   const leaveRoom = useCallback(() => {
-    if (roomId) clearRoomStorage(roomId);
+    if (roomId) clearClientStorage(roomId, getOrCreateClientId());
+    setSkipRestoreOnce(true);
     storeRoomId(null);
     setRoomId(null);
   }, [roomId]);
@@ -190,7 +198,10 @@ export function DemoRoom() {
         </div>
       </div>
 
-      <WeavoTextarea weavoUrl={buildWeavoRoomUrl(roomId)} roomId={roomId} />
+      <WeavoTextarea
+        weavoUrl={buildWeavoRoomUrl(roomId)}
+        skipRestoreOnce={skipRestoreOnce}
+      />
     </div>
   );
 }

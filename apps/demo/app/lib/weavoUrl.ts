@@ -1,13 +1,33 @@
-const DEFAULT_WS_BASE = "ws://localhost:8080";
+const DEFAULT_WS_PORT = "8080";
+const DEFAULT_WS_BASE = `ws://localhost:${DEFAULT_WS_PORT}`;
 
 const isLocalHost = (hostname: string) =>
   hostname === "localhost" || hostname === "127.0.0.1";
 
-/** Upgrade remote URLs to TLS; keeps localhost on ws/http for local dev. */
+/** Private LAN addresses — stay on ws/http during local dev. */
+export const isPrivateNetworkHost = (hostname: string) => {
+  if (isLocalHost(hostname)) return true;
+  if (hostname.startsWith("192.168.")) return true;
+  if (hostname.startsWith("10.")) return true;
+  return /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+};
+
+/** When opened via LAN IP, connect to the same host — not the client's localhost. */
+const defaultWsBase = (): string => {
+  if (typeof window !== "undefined") {
+    const { hostname } = window.location;
+    if (isPrivateNetworkHost(hostname) && !isLocalHost(hostname)) {
+      return `ws://${hostname}:${DEFAULT_WS_PORT}`;
+    }
+  }
+  return DEFAULT_WS_BASE;
+};
+
+/** Upgrade remote URLs to TLS; keeps localhost/LAN on ws/http for local dev. */
 export function normalizeWeavoServerUrl(input: string | URL): URL {
   const url = typeof input === "string" ? new URL(input) : new URL(input.href);
 
-  if (isLocalHost(url.hostname)) return url;
+  if (isPrivateNetworkHost(url.hostname)) return url;
 
   if (url.protocol === "http:" || url.protocol === "ws:") {
     url.protocol = url.protocol === "ws:" ? "wss:" : "https:";

@@ -3,49 +3,65 @@
 import { useEffect, useRef } from "react";
 import { createWeavo } from "@weavo/client";
 import {
-  appendRoomDelta,
-  hasRoomSnapshot,
-  loadRoomStorage,
-  saveRoomSnapshot,
-} from "./lib/roomStorage";
+  appendClientDelta,
+  getOrCreateClientId,
+  hasClientSnapshot,
+  loadClientStorage,
+  saveClientSnapshot,
+} from "./lib/clientStorage";
 
 const CHECKPOINT_EVERY_OPS = 50;
 
+const roomIdFromUrl = (weavoUrl: string) =>
+  new URL(weavoUrl).searchParams.get("room") ?? "";
+
 export function WeavoTextarea({
   weavoUrl,
-  roomId,
+  skipRestoreOnce = false,
 }: {
   weavoUrl: string;
-  roomId: string;
+  /** Skip restoring local storage once (after joining a new room). */
+  skipRestoreOnce?: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const skipRestore = useRef(skipRestoreOnce);
+
+  useEffect(() => {
+    if (skipRestoreOnce) skipRestore.current = true;
+  }, [skipRestoreOnce]);
 
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
 
-    const stored = loadRoomStorage(roomId);
+    const roomId = roomIdFromUrl(weavoUrl);
+    const clientId = getOrCreateClientId();
+    const doRestore = !skipRestore.current;
+    skipRestore.current = false;
+    const stored = doRestore ? loadClientStorage(roomId, clientId) : null;
     let opsSinceCheckpoint = 0;
 
     const weavo = createWeavo(weavoUrl, {
+      clientId,
       initial: stored?.snapshot
         ? { snapshot: stored.snapshot, delta: stored.delta }
         : undefined,
       onOp(op) {
-        appendRoomDelta(roomId, op);
+        appendClientDelta(roomId, clientId, op);
         opsSinceCheckpoint++;
         if (
           opsSinceCheckpoint >= CHECKPOINT_EVERY_OPS ||
-          !hasRoomSnapshot(roomId)
+          !hasClientSnapshot(roomId, clientId)
         ) {
-          saveRoomSnapshot(roomId, weavo.snapshot());
+          saveClientSnapshot(roomId, clientId, weavo.snapshot());
           opsSinceCheckpoint = 0;
         }
       },
     });
 
     const checkpoint = () => {
-      saveRoomSnapshot(roomId, weavo.snapshot());
+      if (!roomId) return;
+      saveClientSnapshot(roomId, clientId, weavo.snapshot());
       opsSinceCheckpoint = 0;
     };
 
@@ -60,7 +76,7 @@ export function WeavoTextarea({
       unbind();
       weavo.disconnect();
     };
-  }, [weavoUrl, roomId]);
+  }, [weavoUrl, skipRestoreOnce]);
 
   return (
     <textarea
