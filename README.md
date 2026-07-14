@@ -246,6 +246,8 @@ This repository is a monorepo containing:
 | `@weavo/sync`      | Synchronization protocol     |
 | `@weavo/transport` | Transport abstraction        |
 
+Design notes: [`docs/architecture.md`](./docs/architecture.md)
+
 ---
 
 ## Development
