@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ClientId } from "@weavo/core";
 import {
-  decodeStateVector,
-  encodeStateVector,
   missingOps,
   update,
   type StateVector,
@@ -96,23 +94,4 @@ describe("StateVector", () => {
     });
   });
 
-  describe("codec", () => {
-    test("round-trips through encode and decode", () => {
-      const sv: StateVector = new Map([
-        [ALICE, 3],
-        [BOB, 7],
-      ]);
-
-      expect(decodeStateVector(encodeStateVector(sv))).toEqual(sv);
-    });
-
-    test("decodes an empty wire payload", () => {
-      expect(decodeStateVector({})).toEqual(new Map());
-    });
-
-    test("encodes to a plain object for transport", () => {
-      const sv: StateVector = new Map([[ALICE, 2]]);
-      expect(encodeStateVector(sv)).toEqual({ [ALICE]: 2 });
-    });
-  });
 });

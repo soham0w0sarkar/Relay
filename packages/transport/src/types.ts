@@ -1,5 +1,5 @@
 import type { ClientId, Operation } from "@weavo/core";
-import type { StateVector, StateVectorWire } from "@weavo/sync";
+import type { StateVector } from "@weavo/sync";
 import type { webSocketTransport } from "./webSocketTransport/types";
 
 export type RawTransport = webSocketTransport;
@@ -27,7 +27,7 @@ type WireMessage =
     }
   | {
       type: "sync-request";
-      vector: StateVectorWire;
+      vector: Record<ClientId, number>;
       clientId: ClientId;
     }
   | {

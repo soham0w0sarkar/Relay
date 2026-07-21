@@ -46,7 +46,7 @@ transport.send({ type: "op", op });
 | `sync-request` | `vector`, `clientId` | Ask peers for missing operations |
 | `sync-response` | `ops`, `clientIds` | Reply with operations the requester lacks |
 
-`createTransport` handles JSON serialization and state-vector encoding/decoding.
+`createTransport` handles JSON serialization and converts state-vector maps at the transport boundary.
 
 ## API overview
 

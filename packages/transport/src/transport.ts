@@ -1,14 +1,10 @@
-import {
-  decodeStateVector,
-  encodeStateVector,
-} from "@weavo/sync";
 import type { Message, RawTransport, Transport, WireMessage } from "./types";
 
 const encodeMessage = (message: Message): WireMessage => {
   if (message.type === "sync-request") {
     return {
       ...message,
-      vector: encodeStateVector(message.vector),
+      vector: Object.fromEntries(message.vector),
     };
   }
   return message;
@@ -18,7 +14,7 @@ const decodeMessage = (wire: WireMessage): Message => {
   if (wire.type === "sync-request") {
     return {
       ...wire,
-      vector: decodeStateVector(wire.vector),
+      vector: new Map(Object.entries(wire.vector)),
     };
   }
   return wire;
