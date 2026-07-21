@@ -37,7 +37,6 @@ const applied = flush(doc);
 
 - **State vectors** — per-client logical clocks for incremental sync
 - **`missingOps`** — compute which operation IDs a peer still needs
-- **Codec** — `encodeStateVector` / `decodeStateVector` for wire transport
 - **Operation buffer** — hold inserts until left/right origins exist, then `flush`
 
 ## API overview
@@ -46,8 +45,6 @@ const applied = flush(doc);
 | --- | --- |
 | `update(sv, operationId)` | Advance a client's clock in a state vector |
 | `missingOps(mine, theirs)` | List operation IDs they haven't received |
-| `encodeStateVector(sv)` | Serialize for transport |
-| `decodeStateVector(wire)` | Deserialize from transport |
 | `addToBuffer(doc, op)` | Queue an out-of-order operation |
 | `flush(doc)` | Apply all operations whose dependencies are satisfied |
 | `canApply(doc, op)` | Check whether an operation can be applied now |

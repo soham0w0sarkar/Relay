@@ -14,7 +14,7 @@ Roadmap:
 
 ```
 @weavo/core
-    ├─ RGA-style CRDT (node store)
+    ├─ YATA-style CRDT (node store)
     ├─ Skip list (textarea index ↔ op id)
     ├─ Operations & replicas
     └─ Snapshots
@@ -150,17 +150,15 @@ Load tests live under `packages/client/test/responseSuppression.load.test.ts` �
 
 `@weavo/transport` is JSON today. `createTransport` is the only serialize/deserialize point. Core and sync never see strings.
 
-That isolation matters: a future binary codec (compact client ints, varints, tagged ops) swaps here without touching `apply` or the skip list. In-memory structures stay objects because typing does Map lookups and pointer walks constantly — decoding blobs on every keystroke would be the wrong place to save bytes.
+In-memory structures stay objects because typing does Map lookups and pointer walks constantly.
 
 ---
 
-## Broadcast makes membership deeper than “compression”
+## Broadcast makes membership necessary
 
 The room is broadcast-only: there is no private `A → B`. Every frame is decoded by everyone.
 
-If the wire ever says `client = 5`, every receiver must already agree `5 → uuid`. That shared dictionary is not a CRDT concern (eventual merge). It is a **membership / dictionary** concern (immediate decode correctness).
-
-Compression was the first feature that surfaces this. Presence, GC frontiers (“everyone still online is past clock X”), and future shared objects all need the same abstraction: **who is in the room**.
+Presence, GC frontiers (“everyone still online is past clock X”), and future shared objects all need the same abstraction: **who is in the room**.
 
 Membership is therefore the next protocol layer — above transport, beside sync — not a relay feature.
 
@@ -174,7 +172,7 @@ For every new idea: **whose package?**
 | --- | --- |
 | Concurrent insert order | `@weavo/core` |
 | “I have clocks you don't” | `@weavo/sync` |
-| Wire shape / codecs | `@weavo/transport` |
+| Wire shape / serialization | `@weavo/transport` |
 | Who is here / fail / GC frontier | membership (future package) |
 | Forward bytes | relay |
 | DOM textarea + selection | `@weavo/client` |
@@ -184,8 +182,6 @@ For every new idea: **whose package?**
 ## Open questions
 
 - Membership protocol under broadcast (join / leave / catch-up for missed commits)
-- Safe UUID → compact int transition once membership is authoritative
 - Presence vs failure-detector heartbeat overlap
 - Tombstone / history GC once a frontier is collectively known
-- Binary wire codec at the transport boundary
 - Late joiner recovery without a smart server
