@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+out
+build
+coverage
+.turbo
+bun.lock
+*.min.js
+apps/demo/public
+apps/docs/public
+docs/assets
