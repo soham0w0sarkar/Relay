@@ -41,21 +41,21 @@ const applied = flush(doc);
 
 ## API overview
 
-| Export | Description |
-| --- | --- |
-| `update(sv, operationId)` | Advance a client's clock in a state vector |
-| `missingOps(mine, theirs)` | List operation IDs they haven't received |
-| `addToBuffer(doc, op)` | Queue an out-of-order operation |
-| `flush(doc)` | Apply all operations whose dependencies are satisfied |
-| `canApply(doc, op)` | Check whether an operation can be applied now |
+| Export                     | Description                                           |
+| -------------------------- | ----------------------------------------------------- |
+| `update(sv, operationId)`  | Advance a client's clock in a state vector            |
+| `missingOps(mine, theirs)` | List operation IDs they haven't received              |
+| `addToBuffer(doc, op)`     | Queue an out-of-order operation                       |
+| `flush(doc)`               | Apply all operations whose dependencies are satisfied |
+| `canApply(doc, op)`        | Check whether an operation can be applied now         |
 
 ## Related packages
 
-| Package | Role |
-| --- | --- |
-| `@weavo/core` | Document replicas and CRDT operations |
+| Package            | Role                                         |
+| ------------------ | -------------------------------------------- |
+| `@weavo/core`      | Document replicas and CRDT operations        |
 | `@weavo/transport` | Sends sync requests/responses over WebSocket |
-| `@weavo/client` | End-to-end browser integration |
+| `@weavo/client`    | End-to-end browser integration               |
 
 ## Development
 

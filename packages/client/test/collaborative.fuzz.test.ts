@@ -32,7 +32,9 @@ const mulberry32 = (seed: number) => {
 };
 const charArb = fc.constantFrom(...alphabet.split(""));
 const textArb = (min: number, max: number) =>
-  fc.array(charArb, { minLength: min, maxLength: max }).map((chars) => chars.join(""));
+  fc
+    .array(charArb, { minLength: min, maxLength: max })
+    .map((chars) => chars.join(""));
 
 const actionArb = fc.oneof(
   fc.record({
@@ -69,33 +71,43 @@ const actionArb = fc.oneof(
 const randomPos = (rand: () => number, len: number) =>
   len === 0 ? 0 : Math.floor(rand() * (len + 1));
 
-type Action = {
-  kind: "type";
-  peer: boolean;
-  text: string;
-  fast: boolean;
-} | {
-  kind: "paste";
-  peer: boolean;
-  text: string;
-  replaceSelection: boolean;
-} | {
-  kind: "dualFast";
-  textA: string;
-  textB: string;
-} | {
-  kind: "middleRace";
-  textA: string;
-  textB: string;
-  paste: boolean;
-} | {
-  kind: "delete";
-  peer: boolean;
-  forward: boolean;
-  replaceSelection: boolean;
-};
+type Action =
+  | {
+      kind: "type";
+      peer: boolean;
+      text: string;
+      fast: boolean;
+    }
+  | {
+      kind: "paste";
+      peer: boolean;
+      text: string;
+      replaceSelection: boolean;
+    }
+  | {
+      kind: "dualFast";
+      textA: string;
+      textB: string;
+    }
+  | {
+      kind: "middleRace";
+      textA: string;
+      textB: string;
+      paste: boolean;
+    }
+  | {
+      kind: "delete";
+      peer: boolean;
+      forward: boolean;
+      replaceSelection: boolean;
+    };
 
-const applyAction = async (a: Peer, b: Peer, action: Action, rand: () => number) => {
+const applyAction = async (
+  a: Peer,
+  b: Peer,
+  action: Action,
+  rand: () => number,
+) => {
   const peer = (useB: boolean) => (useB ? b : a);
 
   switch (action.kind) {

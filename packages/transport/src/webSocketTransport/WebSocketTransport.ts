@@ -128,11 +128,7 @@ export const createWebSocketTransport = (
       }
 
       pendingSend.push(data);
-      if (
-        reconnect &&
-        !socket &&
-        reconnectTimer === undefined
-      ) {
+      if (reconnect && !socket && reconnectTimer === undefined) {
         reconnectAttempt = 0;
         connectInternal();
       }

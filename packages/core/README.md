@@ -47,18 +47,18 @@ const text = getText(doc.store);
 
 ## API overview
 
-| Export | Description |
-| --- | --- |
-| `createReplica(clientId)` | Create a new document replica |
-| `apply(doc, op, onApplied?)` | Apply one remote operation |
-| `onInput(event, doc, snapshot)` | Convert a local `InputEvent` to operations |
-| `getText(store)` | Read the current plain text |
-| `generateClientId()` | Create a unique client identifier |
-| `createSkipList()` | Low-level index structure |
-| `takeSnapshot(doc, stateVector)` | Serialize a replica + state vector to JSON |
-| `restoreSnapshot(snapshot)` | Restore `{ doc, stateVector }` from a checkpoint |
-| `restoreFromStorage(snapshot, delta?)` | Restore base snapshot and replay delta ops |
-| `replayOperations(doc, sv, ops)` | Apply ops on top of a restored replica |
+| Export                                 | Description                                      |
+| -------------------------------------- | ------------------------------------------------ |
+| `createReplica(clientId)`              | Create a new document replica                    |
+| `apply(doc, op, onApplied?)`           | Apply one remote operation                       |
+| `onInput(event, doc, snapshot)`        | Convert a local `InputEvent` to operations       |
+| `getText(store)`                       | Read the current plain text                      |
+| `generateClientId()`                   | Create a unique client identifier                |
+| `createSkipList()`                     | Low-level index structure                        |
+| `takeSnapshot(doc, stateVector)`       | Serialize a replica + state vector to JSON       |
+| `restoreSnapshot(snapshot)`            | Restore `{ doc, stateVector }` from a checkpoint |
+| `restoreFromStorage(snapshot, delta?)` | Restore base snapshot and replay delta ops       |
+| `replayOperations(doc, sv, ops)`       | Apply ops on top of a restored replica           |
 
 See `src/index.ts` for the full export surface.
 
@@ -92,22 +92,22 @@ const { doc: restored, stateVector } = restoreFromStorage(base, delta);
 console.log(getText(restored.store));
 ```
 
-| Export | Description |
-| --- | --- |
-| `takeSnapshot(doc, stateVector)` | Create a `DocumentSnapshot` (version 1, JSON-serializable) |
-| `restoreSnapshot(snapshot)` | Rebuild `{ doc, stateVector }` without replaying ops |
-| `replayOperations(doc, sv, ops)` | Apply a list of ops and advance the state vector |
-| `restoreFromStorage(snapshot, delta?)` | Convenience: restore + replay delta in one call |
+| Export                                 | Description                                                |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `takeSnapshot(doc, stateVector)`       | Create a `DocumentSnapshot` (version 1, JSON-serializable) |
+| `restoreSnapshot(snapshot)`            | Rebuild `{ doc, stateVector }` without replaying ops       |
+| `replayOperations(doc, sv, ops)`       | Apply a list of ops and advance the state vector           |
+| `restoreFromStorage(snapshot, delta?)` | Convenience: restore + replay delta in one call            |
 
 `DocumentSnapshot` includes `version`, `clientId`, `counter`, serialized nodes, skip-list structure, and `stateVector`. Pair it with a delta log of `Operation[]` for efficient persistence — same pattern as `@weavo/client`'s `initial` + `onOp` + `weavo.snapshot()`.
 
 ## Related packages
 
-| Package | Role |
-| --- | --- |
-| `@weavo/client` | Browser textarea binding (recommended entry point) |
-| `@weavo/sync` | State-vector sync and out-of-order operation buffering |
-| `@weavo/transport` | WebSocket wire protocol |
+| Package            | Role                                                   |
+| ------------------ | ------------------------------------------------------ |
+| `@weavo/client`    | Browser textarea binding (recommended entry point)     |
+| `@weavo/sync`      | State-vector sync and out-of-order operation buffering |
+| `@weavo/transport` | WebSocket wire protocol                                |
 
 ## Development
 

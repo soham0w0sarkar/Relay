@@ -24,12 +24,12 @@ bun run build
 
 ## Related packages
 
-| Package | Role |
-| --- | --- |
-| `@weavo/core` | CRDT operations and replicas |
-| `@weavo/sync` | State-vector synchronization |
-| `@weavo/transport` | Wire transport |
-| `@weavo/client` | Browser client |
+| Package            | Role                         |
+| ------------------ | ---------------------------- |
+| `@weavo/core`      | CRDT operations and replicas |
+| `@weavo/sync`      | State-vector synchronization |
+| `@weavo/transport` | Wire transport               |
+| `@weavo/client`    | Browser client               |
 
 ## License
 

@@ -10,12 +10,7 @@ export default function Home() {
         <DemoRoom />
       </main>
       <h1 className={styles.brandMark}>
-        <Image
-          src={logo}
-          alt="weavo"
-          className={styles.logo}
-          priority
-        />
+        <Image src={logo} alt="weavo" className={styles.logo} priority />
       </h1>
     </div>
   );

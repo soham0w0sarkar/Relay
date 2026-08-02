@@ -39,13 +39,23 @@ describe("DocumentSnapshot", () => {
     const doc = createReplica(ALICE);
     const sv = new Map<ClientId, number>();
 
-    const first = createInsertOperation(generateOperationId(ALICE, 0), "hel", ROOT_ID, null);
+    const first = createInsertOperation(
+      generateOperationId(ALICE, 0),
+      "hel",
+      ROOT_ID,
+      null,
+    );
     apply(doc, first);
     sv.set(ALICE, 0);
 
     const snapshot = takeSnapshot(doc, sv);
 
-    const second = createInsertOperation(generateOperationId(BOB, 0), "lo", first.id, null);
+    const second = createInsertOperation(
+      generateOperationId(BOB, 0),
+      "lo",
+      first.id,
+      null,
+    );
     const delta = [second];
 
     const restored = restoreFromStorage(snapshot, delta);
@@ -61,7 +71,12 @@ describe("DocumentSnapshot", () => {
 
     replayOperations(doc, stateVector, [
       createInsertOperation(generateOperationId(ALICE, 0), "a", ROOT_ID, null),
-      createInsertOperation(generateOperationId(ALICE, 1), "b", generateOperationId(ALICE, 0), null),
+      createInsertOperation(
+        generateOperationId(ALICE, 1),
+        "b",
+        generateOperationId(ALICE, 0),
+        null,
+      ),
     ]);
 
     expect(getText(doc.store)).toBe("ab");

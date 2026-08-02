@@ -61,10 +61,10 @@ A smart server would simplify storm control and replay — and couple the protoc
 
 A replica is not one data structure. It is two views of the same document:
 
-| Structure | Owns | Fast at |
-| --- | --- | --- |
+| Structure      | Owns                                                         | Fast at                    |
+| -------------- | ------------------------------------------------------------ | -------------------------- |
 | **Node store** | Causal CRDT order (`leftOrigin` / `rightOrigin`, tombstones) | Merge, equality of history |
-| **Skip list** | Visible character positions | Map caret index ↔ op id |
+| **Skip list**  | Visible character positions                                  | Map caret index ↔ op id    |
 
 `apply` always updates both:
 
@@ -79,7 +79,7 @@ The textarea only understands indices. The CRDT only understands operation ids. 
 
 Typing and remote edits need:
 
-- “character at index *i*” → op id (local input)
+- “character at index _i_” → op id (local input)
 - “op id just applied” → index (move the caret / splice the DOM value)
 
 A plain walk of the CRDT list is **O(n)** per lookup. Continuous typing and remote concurrent edits would make that the hot path.
@@ -88,7 +88,7 @@ The skip list gives **expected O(log n)** index ↔ node mapping:
 
 - height drawn geometrically (`P = 0.5`, max 32)
 - **spans** at each level count how many base-level nodes a forward jump covers — Redis-style ranking, not a plain skip list
-- insert at index *i* finds predecessors via span sums, then splices and adjusts spans
+- insert at index _i_ finds predecessors via span sums, then splices and adjusts spans
 - remove walks predecessors that point at the target (including a careful “is between?” check for non-sorted id space)
 
 Important nuance: the skip list is **not** ordered by operation id. It is ordered by **document position**. Op ids are only stored as `refCrdtKey` so we can jump from CRDT identity back to position.
@@ -125,7 +125,7 @@ Deletes set `tombstone = true`. Physically removing from the CRDT list would bre
 
 ## Sync-response suppression (the backoff)
 
-Under broadcast, *N* peers joining can each emit a sync-request. If every peer with the missing ops answered immediately, you get an **O(N²)** response storm: same payload, many senders.
+Under broadcast, _N_ peers joining can each emit a sync-request. If every peer with the missing ops answered immediately, you get an **O(N²)** response storm: same payload, many senders.
 
 Weavo fixes that client-side (no smart relay):
 
@@ -137,7 +137,7 @@ Weavo fixes that client-side (no smart relay):
 delay = -ln(U) / missingOps.length     // U ~ Uniform(0,1)
 ```
 
-   Geometric waiting times: many missings ⇒ respond sooner (you are a useful source); zero missings ⇒ delay set to `2^31 - 1` (effectively “don't bother”).
+Geometric waiting times: many missings ⇒ respond sooner (you are a useful source); zero missings ⇒ delay set to `2^31 - 1` (effectively “don't bother”).
 
 4. When the winner fires, it sends **one** `sync-response` with `{ ops, clientIds: [...queued requesters] }`.
 5. Losers see a response whose `clientIds` does **not** include them → they **cancel** their own pending timer. Requesters who are listed apply the ops.
@@ -168,14 +168,14 @@ Membership is therefore the next protocol layer — above transport, beside sync
 
 For every new idea: **whose package?**
 
-| Idea | Home |
-| --- | --- |
-| Concurrent insert order | `@weavo/core` |
-| “I have clocks you don't” | `@weavo/sync` |
-| Wire shape / serialization | `@weavo/transport` |
+| Idea                             | Home                        |
+| -------------------------------- | --------------------------- |
+| Concurrent insert order          | `@weavo/core`               |
+| “I have clocks you don't”        | `@weavo/sync`               |
+| Wire shape / serialization       | `@weavo/transport`          |
 | Who is here / fail / GC frontier | membership (future package) |
-| Forward bytes | relay |
-| DOM textarea + selection | `@weavo/client` |
+| Forward bytes                    | relay                       |
+| DOM textarea + selection         | `@weavo/client`             |
 
 ---
 

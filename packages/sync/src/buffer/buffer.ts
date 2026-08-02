@@ -15,10 +15,7 @@ export const createBuffer = (): OperationBuffer => ({
   pendingDeletes: new Map(),
 });
 
-const getMissingDeps = (
-  doc: Document,
-  op: Operation,
-): OperationKey[] => {
+const getMissingDeps = (doc: Document, op: Operation): OperationKey[] => {
   const missing = [];
 
   if (op.type === "insert") {
@@ -93,10 +90,7 @@ const cleanUp = (buffer: OperationBuffer, op: InsertOperation) => {
   }
 };
 
-export const canApply = (
-  doc: Document,
-  op: Operation,
-): boolean => {
+export const canApply = (doc: Document, op: Operation): boolean => {
   if (op.type === "insert") return canApplyInsert(doc, op);
 
   return canApplyDelete(doc, op);

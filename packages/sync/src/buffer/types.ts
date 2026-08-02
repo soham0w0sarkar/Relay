@@ -1,4 +1,8 @@
-import type { DeleteOperation, InsertOperation, OperationKey } from "@weavo/core";
+import type {
+  DeleteOperation,
+  InsertOperation,
+  OperationKey,
+} from "@weavo/core";
 
 export type { OperationKey, Operation } from "@weavo/core";
 

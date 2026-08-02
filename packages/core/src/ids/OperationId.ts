@@ -1,6 +1,7 @@
 import type { ClientId, OperationId, OperationKey } from "./types";
 
-export const toKey = (id: OperationId): OperationKey => `${id[0]}:${id[1]}` as OperationKey
+export const toKey = (id: OperationId): OperationKey =>
+  `${id[0]}:${id[1]}` as OperationKey;
 
 export const generateOperationId = (
   clientId: ClientId,

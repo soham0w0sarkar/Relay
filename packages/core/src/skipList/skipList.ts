@@ -28,7 +28,10 @@ const findPredecessor = (
   sl: SkipList,
   index: number,
 ): { update: SkipListNode[]; rankAt: number[] } => {
-  const update: SkipListNode[] = Array.from({ length: MAX_HEIGHT }, () => sl.head);
+  const update: SkipListNode[] = Array.from(
+    { length: MAX_HEIGHT },
+    () => sl.head,
+  );
   const rankAt: number[] = Array.from({ length: MAX_HEIGHT }, () => 0);
 
   let x = sl.head;
@@ -116,7 +119,10 @@ const findPredecessorsOf = (
   sl: SkipList,
   target: SkipListNode,
 ): SkipListNode[] => {
-  const update: SkipListNode[] = Array.from({ length: MAX_HEIGHT }, () => sl.head);
+  const update: SkipListNode[] = Array.from(
+    { length: MAX_HEIGHT },
+    () => sl.head,
+  );
   let x = sl.head;
 
   for (let level = MAX_HEIGHT - 1; level >= 0; level--) {

@@ -9,12 +9,7 @@ import {
   toKey,
   type ClientId,
 } from "@weavo/core";
-import {
-  addToBuffer,
-  canApply,
-  createBuffer,
-  flush,
-} from "../src/buffer";
+import { addToBuffer, canApply, createBuffer, flush } from "../src/buffer";
 
 const ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as ClientId;
 const BOB = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb" as ClientId;

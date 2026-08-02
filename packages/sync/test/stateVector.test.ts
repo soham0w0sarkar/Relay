@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ClientId } from "@weavo/core";
-import {
-  missingOps,
-  update,
-  type StateVector,
-} from "../src/stateVector";
+import { missingOps, update, type StateVector } from "../src/stateVector";
 
 const ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as ClientId;
 const BOB = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb" as ClientId;
@@ -93,5 +89,4 @@ describe("StateVector", () => {
       expect(missingOps(mine, theirs)).toEqual([]);
     });
   });
-
 });

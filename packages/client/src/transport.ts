@@ -70,7 +70,7 @@ const handleIncomingOp = (
 
     appliedOps.forEach(({ op, index }) => onApplied(op, index));
 
-    if(op.type === "insert") {
+    if (op.type === "insert") {
       update(sv, op.id);
     }
   } else {

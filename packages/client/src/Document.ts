@@ -94,7 +94,7 @@ export const createWeavo = (
     const applied = localInput(event, doc, snapshot);
     if (!applied) return;
     applied.forEach(({ op, index }) => {
-      if(op.type === "insert") {
+      if (op.type === "insert") {
         update(sv, op.id);
       }
       notifyOp(op);

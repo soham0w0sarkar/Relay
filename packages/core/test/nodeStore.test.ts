@@ -2,7 +2,10 @@ import { test, describe } from "node:test";
 import { strict as assert } from "node:assert";
 import { generateClientId, generateOperationId, toKey } from "../src/ids";
 import { ROOT_ID } from "../src/ids/RootId";
-import { createDeleteOperation, createInsertOperation } from "../src/operations";
+import {
+  createDeleteOperation,
+  createInsertOperation,
+} from "../src/operations";
 import { createNode } from "../src/store/Node";
 import {
   createNodeStore,

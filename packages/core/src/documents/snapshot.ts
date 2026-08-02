@@ -1,4 +1,10 @@
-import { ROOT_ID, toKey, type ClientId, type OperationId, type OperationKey } from "../ids";
+import {
+  ROOT_ID,
+  toKey,
+  type ClientId,
+  type OperationId,
+  type OperationKey,
+} from "../ids";
 import type { Operation } from "../operations";
 import { createSkipListNode } from "../skipList";
 import type { SkipList, SkipListNode } from "../skipList/types";
@@ -68,9 +74,7 @@ export const takeSnapshot = (
   stateVector: StateVectorSnapshot | Map<ClientId, number>,
 ): DocumentSnapshot => {
   const sv =
-    stateVector instanceof Map
-      ? Object.fromEntries(stateVector)
-      : stateVector;
+    stateVector instanceof Map ? Object.fromEntries(stateVector) : stateVector;
   const { skipListNodes, skipListLength } = serializeSkipList(doc.skipList);
 
   return {
@@ -129,13 +133,17 @@ const restoreSkipList = (
 
   for (const raw of skipListNodes) {
     const node = nodeMap.get(raw.refCrdtKey)!;
-    node.next = raw.nextKeys.map((key) => (key ? nodeMap.get(key) ?? null : null));
+    node.next = raw.nextKeys.map((key) =>
+      key ? (nodeMap.get(key) ?? null) : null,
+    );
   }
 
   return { head, length: skipListLength, nodeMap };
 };
 
-export const restoreSnapshot = (snapshot: DocumentSnapshot): {
+export const restoreSnapshot = (
+  snapshot: DocumentSnapshot,
+): {
   doc: Document;
   stateVector: Map<ClientId, number>;
 } => {
@@ -148,7 +156,10 @@ export const restoreSnapshot = (snapshot: DocumentSnapshot): {
       clientId: snapshot.clientId,
       counter: snapshot.counter,
       store: restoreStore(snapshot.nodes),
-      skipList: restoreSkipList(snapshot.skipListNodes, snapshot.skipListLength),
+      skipList: restoreSkipList(
+        snapshot.skipListNodes,
+        snapshot.skipListLength,
+      ),
     },
     stateVector: new Map(Object.entries(snapshot.stateVector)),
   };

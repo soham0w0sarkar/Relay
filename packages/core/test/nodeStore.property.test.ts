@@ -169,8 +169,7 @@ function buildOps(bytes: Uint8Array): StoreOp[] {
     const doDelete = nodeIds.length > 1 && (b0 & 1) === 1;
 
     if (!doDelete) {
-      const idx =
-        nodeIds.length <= 1 ? 0 : (bytes[i++] ?? 0) % nodeIds.length;
+      const idx = nodeIds.length <= 1 ? 0 : (bytes[i++] ?? 0) % nodeIds.length;
       const leftOriginId = nodeIds[idx]!;
       const leftNode = ref.nodes.get(toKey(leftOriginId))!;
       const rightOriginId = leftNode.next?.id ?? null;
@@ -284,7 +283,10 @@ describe("NodeStore — unit", () => {
     const id = generateOperationId(CLIENT, 0);
     assert.throws(
       () =>
-        insertIntoStore(store, createInsertOperation(id, "a", ROOT_ID, missing)),
+        insertIntoStore(
+          store,
+          createInsertOperation(id, "a", ROOT_ID, missing),
+        ),
       /cannot be merged yet/,
     );
   });
@@ -397,9 +399,7 @@ describe("NodeStore — load", () => {
     for (let i = 0; i < n; i += 2) {
       removeFromStore(
         store,
-        createDeleteOperation(
-          generateOperationId(CLIENT3, i),
-        ),
+        createDeleteOperation(generateOperationId(CLIENT3, i)),
       );
     }
     const ms = performance.now() - t0;

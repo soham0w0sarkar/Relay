@@ -1,4 +1,5 @@
 # Weavo
+
 <p align="center">
   <img src="docs/assets/logo.png" width="180" alt="weavo" />
 </p>
@@ -113,7 +114,9 @@ You may also pass a custom transport instead of a URL, plus optional persistence
 ```ts
 const weavo = createWeavo(url, {
   initial: { snapshot, delta }, // restore from storage
-  onOp(op) { /* append to delta log */ },
+  onOp(op) {
+    /* append to delta log */
+  },
 });
 ```
 

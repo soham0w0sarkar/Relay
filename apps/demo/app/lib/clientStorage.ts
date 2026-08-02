@@ -39,7 +39,9 @@ export function loadClientStorage(
   if (!snapshotRaw && !deltaRaw) return null;
 
   return {
-    snapshot: snapshotRaw ? (JSON.parse(snapshotRaw) as DocumentSnapshot) : null,
+    snapshot: snapshotRaw
+      ? (JSON.parse(snapshotRaw) as DocumentSnapshot)
+      : null,
     delta: deltaRaw ? (JSON.parse(deltaRaw) as Operation[]) : [],
   };
 }

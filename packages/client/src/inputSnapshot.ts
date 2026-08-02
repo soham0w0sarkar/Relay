@@ -44,8 +44,7 @@ const undoLocalEdit = (
   inputType: string,
   data: string | null,
 ): string => {
-  const inserted =
-    inputType === "insertLineBreak" ? "\n" : (data ?? "");
+  const inserted = inputType === "insertLineBreak" ? "\n" : (data ?? "");
 
   switch (inputType) {
     case "insertText":
@@ -121,8 +120,7 @@ const reconcileDriftedBefore = (
     inputType === "insertLineBreak" ||
     inputType === "insertFromPaste"
   ) {
-    const inserted =
-      inputType === "insertLineBreak" ? "\n" : (data ?? "");
+    const inserted = inputType === "insertLineBreak" ? "\n" : (data ?? "");
     const remoteLen = endNew - start - (endOld - start) - inserted.length;
     if (remoteLen > 0) {
       return transformSnapshot(before, {

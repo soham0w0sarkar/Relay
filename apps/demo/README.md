@@ -50,11 +50,11 @@ See `vercel.json`. Set root directory to `apps/demo` and `NEXT_PUBLIC_WEAVO_WS_U
 
 ## Environment
 
-| Variable | Default | Notes |
-|----------|---------|-------|
+| Variable                   | Default               | Notes                                                                                                                 |
+| -------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_WEAVO_WS_URL` | `ws://localhost:8080` | Weavo WebSocket **base** URL (room UUID appended client-side). Set `WEAVO_WS_URL` secret in GitHub Actions for Pages. |
-| `NEXT_STATIC_EXPORT` | unset | Set to `1` for GitHub Pages static export |
-| `NEXT_PUBLIC_BASE_PATH` | `""` | Set to `/Weavo` for this repo on GitHub Pages (`/${{ repository.name }}` in CI) |
-| `PORT` (weavo-server) | `8080` | Weavo server only |
+| `NEXT_STATIC_EXPORT`       | unset                 | Set to `1` for GitHub Pages static export                                                                             |
+| `NEXT_PUBLIC_BASE_PATH`    | `""`                  | Set to `/Weavo` for this repo on GitHub Pages (`/${{ repository.name }}` in CI)                                       |
+| `PORT` (weavo-server)      | `8080`                | Weavo server only                                                                                                     |
 
 GitHub Pages hosts the static UI only. The Weavo server must run elsewhere for sync to work in production.

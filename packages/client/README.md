@@ -167,14 +167,20 @@ import {
 } from "@weavo/client";
 
 // --- restore on load ---
-const snapshot = JSON.parse(localStorage.getItem("doc:snapshot")!) as DocumentSnapshot;
-const delta = JSON.parse(localStorage.getItem("doc:delta") ?? "[]") as Operation[];
+const snapshot = JSON.parse(
+  localStorage.getItem("doc:snapshot")!,
+) as DocumentSnapshot;
+const delta = JSON.parse(
+  localStorage.getItem("doc:delta") ?? "[]",
+) as Operation[];
 
 const weavo = createWeavo("ws://localhost:8080?room=notes", {
   initial: { snapshot, delta },
   onOp(op) {
     // append every local + remote op to the delta log
-    const ops = JSON.parse(localStorage.getItem("doc:delta") ?? "[]") as Operation[];
+    const ops = JSON.parse(
+      localStorage.getItem("doc:delta") ?? "[]",
+    ) as Operation[];
     ops.push(op);
     localStorage.setItem("doc:delta", JSON.stringify(ops));
   },

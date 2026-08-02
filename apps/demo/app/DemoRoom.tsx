@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { WeavoTextarea } from "./WeavoTextarea";
 import { buildWeavoRoomUrl } from "./lib/weavoUrl";
-import {
-  checkWeavoServerReady,
-  isRemoteWeavoServer,
-} from "./lib/weavoReady";
+import { checkWeavoServerReady, isRemoteWeavoServer } from "./lib/weavoReady";
 import {
   createRoomId,
   loadStoredRoomId,
@@ -14,10 +11,7 @@ import {
   shortRoomId,
   storeRoomId,
 } from "./lib/roomId";
-import {
-  clearClientStorage,
-  getOrCreateClientId,
-} from "./lib/clientStorage";
+import { clearClientStorage, getOrCreateClientId } from "./lib/clientStorage";
 import styles from "./page.module.css";
 
 type ServerStatus = "checking" | "ready" | "unavailable";
@@ -119,7 +113,11 @@ export function DemoRoom() {
   if (!roomId) {
     return (
       <div className={styles.lobby}>
-        <button type="button" className={styles.createButton} onClick={createRoom}>
+        <button
+          type="button"
+          className={styles.createButton}
+          onClick={createRoom}
+        >
           New room
         </button>
 
@@ -129,7 +127,9 @@ export function DemoRoom() {
           <span />
         </div>
 
-        <div className={`${styles.joinRow} ${joinError ? styles.joinRowError : ""}`}>
+        <div
+          className={`${styles.joinRow} ${joinError ? styles.joinRowError : ""}`}
+        >
           <input
             type="text"
             className={styles.roomInput}
@@ -149,7 +149,11 @@ export function DemoRoom() {
             }}
             aria-invalid={joinError}
           />
-          <button type="button" className={styles.joinButton} onClick={joinRoom}>
+          <button
+            type="button"
+            className={styles.joinButton}
+            onClick={joinRoom}
+          >
             Join
           </button>
         </div>
@@ -165,13 +169,25 @@ export function DemoRoom() {
             {roomId}
           </code>
           <div className={styles.actions}>
-            <button type="button" className={styles.ghostButton} onClick={copyId}>
+            <button
+              type="button"
+              className={styles.ghostButton}
+              onClick={copyId}
+            >
               {copied ? "Copied" : "Copy"}
             </button>
-            <button type="button" className={styles.ghostButton} onClick={createRoom}>
+            <button
+              type="button"
+              className={styles.ghostButton}
+              onClick={createRoom}
+            >
               New
             </button>
-            <button type="button" className={styles.ghostButton} onClick={leaveRoom}>
+            <button
+              type="button"
+              className={styles.ghostButton}
+              onClick={leaveRoom}
+            >
               Leave
             </button>
           </div>
@@ -188,10 +204,18 @@ export function DemoRoom() {
             </button>
           </div>
           <div className={styles.mobileActions}>
-            <button type="button" className={styles.outlineButton} onClick={createRoom}>
+            <button
+              type="button"
+              className={styles.outlineButton}
+              onClick={createRoom}
+            >
               New room
             </button>
-            <button type="button" className={styles.outlineButton} onClick={leaveRoom}>
+            <button
+              type="button"
+              className={styles.outlineButton}
+              onClick={leaveRoom}
+            >
               Leave
             </button>
           </div>

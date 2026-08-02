@@ -17,10 +17,7 @@ npm install @weavo/transport
 ## Quick start
 
 ```ts
-import {
-  createWebSocketTransport,
-  createTransport,
-} from "@weavo/transport";
+import { createWebSocketTransport, createTransport } from "@weavo/transport";
 
 const raw = createWebSocketTransport("ws://localhost:8080?room=doc-1");
 const transport = createTransport(raw);
@@ -40,22 +37,22 @@ transport.send({ type: "op", op });
 
 ## Message types
 
-| Type | Payload | Purpose |
-| --- | --- | --- |
-| `op` | `Operation` | Broadcast a local or remote CRDT operation |
-| `sync-request` | `vector`, `clientId` | Ask peers for missing operations |
-| `sync-response` | `ops`, `clientIds` | Reply with operations the requester lacks |
+| Type            | Payload              | Purpose                                    |
+| --------------- | -------------------- | ------------------------------------------ |
+| `op`            | `Operation`          | Broadcast a local or remote CRDT operation |
+| `sync-request`  | `vector`, `clientId` | Ask peers for missing operations           |
+| `sync-response` | `ops`, `clientIds`   | Reply with operations the requester lacks  |
 
 `createTransport` handles JSON serialization and converts state-vector maps at the transport boundary.
 
 ## API overview
 
-| Export | Description |
-| --- | --- |
-| `createWebSocketTransport(url)` | Browser WebSocket-backed `RawTransport` |
-| `createTransport(raw)` | Typed message layer over a raw transport |
-| `RawTransport` | Interface for custom transports (tests, Node, etc.) |
-| `Transport` | Typed send/receive with parsed `Message` objects |
+| Export                          | Description                                         |
+| ------------------------------- | --------------------------------------------------- |
+| `createWebSocketTransport(url)` | Browser WebSocket-backed `RawTransport`             |
+| `createTransport(raw)`          | Typed message layer over a raw transport            |
+| `RawTransport`                  | Interface for custom transports (tests, Node, etc.) |
+| `Transport`                     | Typed send/receive with parsed `Message` objects    |
 
 ### Custom transport
 
@@ -63,12 +60,24 @@ transport.send({ type: "op", op });
 import { createTransport, type RawTransport } from "@weavo/transport";
 
 const raw: RawTransport = {
-  connect() { /* ... */ },
-  disconnect() { /* ... */ },
-  send(data: string) { /* ... */ },
-  onMessage(cb) { return () => {}; },
-  onOpen(cb) { return () => {}; },
-  onClose(cb) { return () => {}; },
+  connect() {
+    /* ... */
+  },
+  disconnect() {
+    /* ... */
+  },
+  send(data: string) {
+    /* ... */
+  },
+  onMessage(cb) {
+    return () => {};
+  },
+  onOpen(cb) {
+    return () => {};
+  },
+  onClose(cb) {
+    return () => {};
+  },
 };
 
 const transport = createTransport(raw);
@@ -76,10 +85,10 @@ const transport = createTransport(raw);
 
 ## Related packages
 
-| Package | Role |
-| --- | --- |
-| `@weavo/core` | CRDT operations carried in messages |
-| `@weavo/sync` | State vectors used in sync requests |
+| Package         | Role                                         |
+| --------------- | -------------------------------------------- |
+| `@weavo/core`   | CRDT operations carried in messages          |
+| `@weavo/sync`   | State vectors used in sync requests          |
 | `@weavo/client` | Wires transport to a textarea out of the box |
 
 ## Development

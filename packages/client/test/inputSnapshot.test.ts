@@ -63,9 +63,9 @@ describe("reconcileBefore", () => {
   test("returns transformed snapshot when only local edit happened", () => {
     const before = { start: 5, end: 5, value: "aXYbcdef" };
 
-    expect(
-      reconcileBefore(before, "aXYbcZdef", "insertText", "Z"),
-    ).toBe(before);
+    expect(reconcileBefore(before, "aXYbcZdef", "insertText", "Z")).toBe(
+      before,
+    );
 
     expect(
       reconcileBefore(before, "aXYbdef", "deleteContentBackward", null),
