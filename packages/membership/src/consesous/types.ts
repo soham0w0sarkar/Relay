@@ -4,7 +4,7 @@ import type { Membership } from "../membershipStore/types"
 
 export type Ballot = {
   epoch: number
-  proposerId: ClientId
+  proposer: ClientId
 }
 
 export type PrepareMessage = {
