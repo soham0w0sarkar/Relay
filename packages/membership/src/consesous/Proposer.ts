@@ -1,8 +1,13 @@
 import type { ClientId } from "@weavo/core";
 import type { Membership, MembershipStore } from "../membershipStore/types";
 import { buildMembership, get } from "../membershipStore";
-import { createBallot } from "./Ballot";
-import type { JoinRequestMessage, MembershipMessage } from "./types";
+import { compareBallot, createBallot } from "./Ballot";
+import type {
+  Ballot,
+  JoinRequestMessage,
+  MembershipMessage,
+  PromiseMessage,
+} from "./types";
 
 const INITIAL_JITTER = () => Math.random() * 100;
 const RETRY_JITTER = () => Math.random() * 500;
@@ -15,13 +20,14 @@ export const createProposer = (
   clientId: ClientId,
 ) => {
   const proposerState = {
-    promises: new Map<ClientId, MembershipMessage>(),
+    promises: new Map<ClientId, PromiseMessage>(),
     acceptances: [] as ClientId[],
     retryTimer: null as ReturnType<typeof setTimeout> | null,
     epoch: -1,
     joinReqBatch: [] as ClientId[],
     proposalTimer: null as ReturnType<typeof setTimeout> | null,
     proposedMembership: null as Membership | null,
+    acceptSent: false,
   };
 
   const clearRetry = () => {
@@ -31,12 +37,26 @@ export const createProposer = (
     }
   };
 
+  const clearProposalTimer = () => {
+    if (proposerState.proposalTimer !== null) {
+      clearTimeout(proposerState.proposalTimer);
+      proposerState.proposalTimer = null;
+    }
+  };
+
+  const quorum = () => {
+    const current = get(store, store.currentVersion);
+    if (!current || current.members.length === 0) return 1;
+    return Math.floor(current.members.length / 2) + 1;
+  };
+
   const startProposal = (proposedMembership: Membership, isRetry = false) => {
     proposerState.epoch++;
     const ballot = createBallot(proposerState.epoch, clientId);
 
     proposerState.promises.clear();
     proposerState.acceptances = [];
+    proposerState.acceptSent = false;
     proposerState.proposedMembership = proposedMembership;
 
     broadcast({
@@ -90,5 +110,51 @@ export const createProposer = (
     }, Math.max(0, rank) * 500 + INITIAL_JITTER() + BATCH_WINDOW);
   };
 
-  return { onJoinRequest };
+  const onPromise = (msg: PromiseMessage) => {
+    const proposed = proposerState.proposedMembership;
+    if (!proposed) return;
+    if (msg.version !== proposed.version) return;
+    if (
+      msg.ballot.epoch !== proposerState.epoch ||
+      msg.ballot.proposer !== clientId
+    ) {
+      return;
+    }
+
+    proposerState.promises.set(msg.senderId, msg);
+    if (proposerState.promises.size < quorum()) return;
+    if (proposerState.acceptSent) return;
+
+    clearRetry();
+    clearProposalTimer();
+
+    let highestAcceptedBallot: Ballot | null = null;
+    let carriedMembership: Membership | null = null;
+
+    for (const promise of proposerState.promises.values()) {
+      if (!promise.lastAcceptedBallot || !promise.lastAcceptedMembership) {
+        continue;
+      }
+      if (
+        highestAcceptedBallot === null ||
+        compareBallot(promise.lastAcceptedBallot, highestAcceptedBallot) > 0
+      ) {
+        highestAcceptedBallot = promise.lastAcceptedBallot;
+        carriedMembership = promise.lastAcceptedMembership;
+      }
+    }
+
+    const membership = carriedMembership ?? proposed;
+    proposerState.proposedMembership = membership;
+    proposerState.acceptSent = true;
+
+    broadcast({
+      type: "ACCEPT",
+      ballot: createBallot(proposerState.epoch, clientId),
+      version: membership.version,
+      membership,
+    });
+  };
+
+  return { onJoinRequest, onPromise };
 };
