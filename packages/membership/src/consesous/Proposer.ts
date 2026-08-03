@@ -156,5 +156,15 @@ export const createProposer = (
     });
   };
 
-  return { onJoinRequest, onPromise };
+  const cancel = () => {
+    clearProposalTimer();
+    clearRetry();
+    proposerState.joinReqBatch = [];
+    proposerState.proposedMembership = null;
+    proposerState.promises.clear();
+    proposerState.acceptances = [];
+    proposerState.acceptSent = false;
+  };
+
+  return { onJoinRequest, onPromise, cancel };
 };
