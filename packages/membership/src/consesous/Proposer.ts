@@ -3,6 +3,7 @@ import type { Membership, MembershipStore } from "../membershipStore/types";
 import { buildMembership, get } from "../membershipStore";
 import { compareBallot, createBallot } from "./Ballot";
 import type {
+  AcceptedMessage,
   Ballot,
   JoinRequestMessage,
   MembershipMessage,
@@ -156,6 +157,38 @@ export const createProposer = (
     });
   };
 
+  const onAccepted = (msg: AcceptedMessage) => {
+    const proposed = proposerState.proposedMembership;
+    if (!proposed) return;
+    if (!proposerState.acceptSent) return;
+    if (msg.version !== proposed.version) return;
+    if (
+      msg.ballot.epoch !== proposerState.epoch ||
+      msg.ballot.proposer !== clientId
+    ) {
+      return;
+    }
+
+    if (!proposerState.acceptances.includes(msg.peerId)) {
+      proposerState.acceptances.push(msg.peerId);
+    }
+    if (proposerState.acceptances.length < quorum()) return;
+
+    clearRetry();
+    clearProposalTimer();
+
+    broadcast({
+      type: "COMMIT",
+      version: proposed.version,
+      membership: proposed,
+    });
+
+    proposerState.proposedMembership = null;
+    proposerState.promises.clear();
+    proposerState.acceptances = [];
+    proposerState.acceptSent = false;
+  };
+
   const cancel = () => {
     clearProposalTimer();
     clearRetry();
@@ -166,5 +199,5 @@ export const createProposer = (
     proposerState.acceptSent = false;
   };
 
-  return { onJoinRequest, onPromise, cancel };
+  return { onJoinRequest, onPromise, onAccepted, cancel };
 };
