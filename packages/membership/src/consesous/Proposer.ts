@@ -70,24 +70,27 @@ export const createProposer = (
       (m) => m.clientId === clientId,
     );
 
-    proposerState.proposalTimer = setTimeout(() => {
-      proposerState.proposalTimer = null;
+    proposerState.proposalTimer = setTimeout(
+      () => {
+        proposerState.proposalTimer = null;
 
-      const latest = get(store, store.currentVersion);
-      if (!latest) {
+        const latest = get(store, store.currentVersion);
+        if (!latest) {
+          proposerState.joinReqBatch = [];
+          return;
+        }
+
+        const clientIds = [
+          ...latest.members.map((member) => member.clientId),
+          ...proposerState.joinReqBatch,
+        ];
         proposerState.joinReqBatch = [];
-        return;
-      }
 
-      const clientIds = [
-        ...latest.members.map((member) => member.clientId),
-        ...proposerState.joinReqBatch,
-      ];
-      proposerState.joinReqBatch = [];
-
-      const proposed = buildMembership(latest.version + 1, clientIds);
-      startProposal(proposed);
-    }, Math.max(0, rank) * 500 + INITIAL_JITTER() + BATCH_WINDOW);
+        const proposed = buildMembership(latest.version + 1, clientIds);
+        startProposal(proposed);
+      },
+      Math.max(0, rank) * 500 + INITIAL_JITTER() + BATCH_WINDOW,
+    );
   };
 
   return { onJoinRequest };
