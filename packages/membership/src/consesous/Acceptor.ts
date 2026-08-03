@@ -1,5 +1,7 @@
 import type { ClientId } from "@weavo/core";
 import type { Membership, MembershipStore } from "../membershipStore/types";
+import { commit, get } from "../membershipStore";
+import { compareBallot, nullBallot } from "./Ballot";
 import type {
   AcceptMessage,
   Ballot,
@@ -8,8 +10,6 @@ import type {
   MembershipRequestMessage,
   PrepareMessage,
 } from "./types";
-import { compareBallot, nullBallot } from "./Ballot";
-import { commit, get } from "../membershipStore";
 
 export const createAcceptor = (
   store: MembershipStore,
@@ -28,10 +28,10 @@ export const createAcceptor = (
     acceptorState.acceptedMemberships.clear();
   };
 
-  const onPreapre = (msg: PrepareMessage) => {
+  const onPrepare = (msg: PrepareMessage) => {
     const promised =
       acceptorState.promisedBallots.get(msg.version) ?? nullBallot();
-    if (compareBallot(promised, msg.ballot) <= 0) return;
+    if (compareBallot(msg.ballot, promised) < 0) return;
 
     acceptorState.promisedBallots.set(msg.version, msg.ballot);
 
@@ -40,8 +40,7 @@ export const createAcceptor = (
       ballot: msg.ballot,
       version: msg.version,
       senderId: clientId,
-      lastAcceptedBallot:
-        acceptorState.acceptedBallots.get(msg.version) ?? nullBallot(),
+      lastAcceptedBallot: acceptorState.acceptedBallots.get(msg.version) ?? null,
       lastAcceptedMembership:
         acceptorState.acceptedMemberships.get(msg.version) ?? null,
     });
@@ -50,16 +49,16 @@ export const createAcceptor = (
   const onAccept = (msg: AcceptMessage) => {
     const promised =
       acceptorState.promisedBallots.get(msg.version) ?? nullBallot();
-    if (compareBallot(promised, msg.ballot) <= 0) return;
+    if (compareBallot(msg.ballot, promised) < 0) return;
 
     acceptorState.acceptedBallots.set(msg.version, msg.ballot);
     acceptorState.acceptedMemberships.set(msg.version, msg.membership);
 
     broadcast({
-      type: "ACCEPT",
+      type: "ACCEPTED",
       ballot: msg.ballot,
       version: msg.version,
-      membership: msg.membership,
+      peerId: clientId,
     });
   };
 
@@ -74,13 +73,13 @@ export const createAcceptor = (
       broadcast({
         type: "MEMBERSHIP_RESPONSE",
         version: msg.version,
-        membership: membership,
+        membership,
       });
     }
   };
 
   return {
-    onPreapre,
+    onPrepare,
     onAccept,
     onCommit,
     onMembershipRequest,
