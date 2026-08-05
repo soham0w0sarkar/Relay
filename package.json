@@ -22,7 +22,7 @@
     "check-types": "turbo run check-types",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo run build --filter=@weavo/core --filter=@weavo/sync --filter=@weavo/transport --filter=@weavo/client && changeset publish",
+    "release": "turbo run build --filter=@weavo/core --filter=@weavo/sync --filter=@weavo/transport --filter=@weavo/client --filter=@weavo/membership && changeset publish",
     "tag-release": "bash scripts/tag-release.sh",
     "tag-demo": "bash scripts/tag-demo.sh"
   },
