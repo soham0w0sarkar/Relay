@@ -6,8 +6,6 @@
 
 CASPaxos-based membership, presence, liveness, and GC frontier for Weavo rooms.
 
-Scaffold only — implementation coming next.
-
 ## Install
 
 ```bash
