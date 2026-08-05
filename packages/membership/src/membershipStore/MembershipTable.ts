@@ -6,7 +6,7 @@ export const buildMembership = (
   clientIds: ClientId[],
 ): Membership => ({
   version,
-  members: [...clientIds]
+  members: [...new Set(clientIds)]
     .sort()
     .map((clientId, i) => ({ clientId, shortId: i })),
 });
