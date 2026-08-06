@@ -55,7 +55,7 @@ describe("createTransport binary messages", () => {
       vector: new Map([[ALICE, 2]]),
     });
 
-    expect(sent[0]![0]).toBe(1);
+    expect(sent[0]![0]).toBe(2);
     expect(sent[0]![1]).toBe(MSG_SYNC_REQUEST);
 
     deliver(sent[0]!);
@@ -93,5 +93,43 @@ describe("createTransport binary messages", () => {
 
     expect(received).toEqual([join, prepare]);
     expect(isMembershipMessage(received[0])).toBe(true);
+  });
+
+  test("missing membership version requests the table and skips the frame", () => {
+    const missing: number[] = [];
+    const table = new Map([[ALICE, 0]]);
+    const byShort = new Map([[0, ALICE]]);
+    const { raw, sent, deliver } = createMemoryRaw();
+    const transport = createTransport(raw, {
+      idCodec: {
+        encodeVersion: () => 1,
+        shortIdOf: (id) => table.get(id) ?? null,
+        clientIdOf: (version, shortId) =>
+          version === 1 ? (byShort.get(shortId) ?? null) : null,
+        hasVersion: (version) => version === 1,
+        onMissingVersion: (version) => missing.push(version),
+      },
+    });
+
+    const foreign = createTransport(raw, {
+      idCodec: {
+        encodeVersion: () => 9,
+        shortIdOf: (id) => table.get(id) ?? null,
+        clientIdOf: () => null,
+        hasVersion: () => true,
+      },
+    });
+    foreign.send({
+      type: "sync-request",
+      clientId: ALICE,
+      vector: new Map([[ALICE, 2]]),
+    });
+
+    const received: Message[] = [];
+    transport.onMessage((m) => received.push(m));
+    deliver(sent[0]!);
+
+    expect(received).toEqual([]);
+    expect(missing).toEqual([9]);
   });
 });
