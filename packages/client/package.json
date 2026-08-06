@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@weavo/core": "^1.2.2",
+    "@weavo/membership": "workspace:*",
     "@weavo/sync": "^1.1.1",
     "@weavo/transport": "^1.1.1"
   },
