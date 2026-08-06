@@ -15,6 +15,7 @@ import {
   pasteText,
   seedText,
   teardownPeers,
+  type Peer,
 } from "./helpers/editor";
 import { MemoryRoom } from "./helpers/memoryTransport";
 
@@ -24,7 +25,7 @@ afterEach(() => {
 
 describe("editor — local input", () => {
   let room: MemoryRoom;
-  let peer: ReturnType<typeof createPeer>;
+  let peer: Peer;
 
   afterEach(() => {
     if (peer) teardownPeers(peer);
@@ -32,7 +33,7 @@ describe("editor — local input", () => {
 
   test("inserts text at the cursor", async () => {
     room = new MemoryRoom();
-    peer = createPeer(room);
+    peer = await createPeer(room);
     await flushMicrotasks();
 
     moveCursor(peer.el, 0);
@@ -44,7 +45,7 @@ describe("editor — local input", () => {
 
   test("inserts in the middle of existing text", async () => {
     room = new MemoryRoom();
-    peer = createPeer(room);
+    peer = await createPeer(room);
     await flushMicrotasks();
 
     seedText(peer.el, "hllo");
@@ -56,7 +57,7 @@ describe("editor — local input", () => {
 
   test("backspace deletes the character before the cursor", async () => {
     room = new MemoryRoom();
-    peer = createPeer(room);
+    peer = await createPeer(room);
     await flushMicrotasks();
 
     seedText(peer.el, "hello");
@@ -69,7 +70,7 @@ describe("editor — local input", () => {
 
   test("delete removes the character after the cursor", async () => {
     room = new MemoryRoom();
-    peer = createPeer(room);
+    peer = await createPeer(room);
     await flushMicrotasks();
 
     seedText(peer.el, "hello");
@@ -82,7 +83,7 @@ describe("editor — local input", () => {
 
   test("replaces a selection on insert", async () => {
     room = new MemoryRoom();
-    peer = createPeer(room);
+    peer = await createPeer(room);
     await flushMicrotasks();
 
     seedText(peer.el, "hello");
@@ -94,7 +95,7 @@ describe("editor — local input", () => {
 
   test("deletes the full selection with backspace", async () => {
     room = new MemoryRoom();
-    peer = createPeer(room);
+    peer = await createPeer(room);
     await flushMicrotasks();
 
     seedText(peer.el, "hello");
@@ -107,7 +108,7 @@ describe("editor — local input", () => {
 
   test("deletes the full selection with delete", async () => {
     room = new MemoryRoom();
-    peer = createPeer(room);
+    peer = await createPeer(room);
     await flushMicrotasks();
 
     seedText(peer.el, "hello");
@@ -120,7 +121,7 @@ describe("editor — local input", () => {
 
   test("emits text changes for local edits", async () => {
     room = new MemoryRoom();
-    peer = createPeer(room);
+    peer = await createPeer(room);
     await flushMicrotasks();
 
     const changes: TextChange[] = [];
@@ -371,7 +372,7 @@ describe("editor — bind lifecycle", () => {
 
   test("rebind attaches to a new textarea", async () => {
     const room = new MemoryRoom();
-    const a = createPeer(room);
+    const a = await createPeer(room);
     await flushMicrotasks();
 
     moveCursor(a.el, 0);

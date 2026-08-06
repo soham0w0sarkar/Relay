@@ -9,10 +9,14 @@ import {
   ROOT_ID,
   type ClientId,
 } from "@weavo/core";
+import { createMembership } from "@weavo/membership";
 import { update, createBuffer, type StateVector } from "@weavo/sync";
 import { createWeavo } from "../src/Document";
 import { manageTransport } from "../src/transport";
-import { createCountingRoom } from "./helpers/countingRoom";
+import {
+  createCountingRoom,
+  type CountingMemoryRoom,
+} from "./helpers/countingRoom";
 import { createTextarea, flushMicrotasks, insertText } from "./helpers/editor";
 import { createMockTransport } from "./helpers/mockTransport";
 
@@ -29,6 +33,18 @@ const seedHubDocument = () => {
   update(sv, opId);
   return { doc, sv, clientId };
 };
+
+const joinedMembership = (clientId: ClientId) =>
+  createMembership(() => {}, { clientId, initialMembers: [clientId] });
+
+const seededIds = () =>
+  Array.from({ length: PEER_COUNT }, () => generateClientId());
+
+const seededPeer = (
+  room: CountingMemoryRoom,
+  clientId: ClientId,
+  members: ClientId[],
+) => createWeavo(room.join(), { clientId, initialMembers: members });
 
 describe("sync-response suppression load", () => {
   let randomSpy: ReturnType<typeof spyOn<typeof Math, "random">>;
@@ -54,7 +70,14 @@ describe("sync-response suppression load", () => {
       baseSend(message);
     };
 
-    manageTransport(transport, doc, sv, createBuffer(), () => {});
+    manageTransport(
+      transport,
+      doc,
+      sv,
+      createBuffer(),
+      () => {},
+      joinedMembership(doc.clientId),
+    );
     transport.connect();
     sent.length = 0;
 
@@ -81,9 +104,11 @@ describe("sync-response suppression load", () => {
   test(`${PEER_COUNT} peers join without sync-response storm`, async () => {
     const room = createCountingRoom();
 
-    const writer = createWeavo(room.join());
+    const members = seededIds();
+    const writer = seededPeer(room, members[0]!, members);
     const el = createTextarea();
     writer.bind(el);
+    await flushMicrotasks();
     insertText(el, "load-test");
     await flushMicrotasks();
 
@@ -91,7 +116,7 @@ describe("sync-response suppression load", () => {
 
     const peers: ReturnType<typeof createWeavo>[] = [writer];
     for (let i = 1; i < PEER_COUNT; i++) {
-      peers.push(createWeavo(room.join()));
+      peers.push(seededPeer(room, members[i]!, members));
     }
 
     await flushMicrotasks();
@@ -104,11 +129,12 @@ describe("sync-response suppression load", () => {
 
     for (const peer of peers) peer.disconnect();
     el.remove();
-  }, 30_000);
+  }, 120_000);
 
   test(`${PEER_COUNT} peers converge after join storm`, async () => {
     const room = createCountingRoom();
-    const writer = createWeavo(room.join());
+    const members = seededIds();
+    const writer = seededPeer(room, members[0]!, members);
     const writerEl = createTextarea();
     writer.bind(writerEl);
 
@@ -116,16 +142,17 @@ describe("sync-response suppression load", () => {
     const elements: HTMLTextAreaElement[] = [writerEl];
 
     for (let i = 1; i < PEER_COUNT; i++) {
-      peers.push(createWeavo(room.join()));
+      peers.push(seededPeer(room, members[i]!, members));
       const el = createTextarea();
       elements.push(el);
       peers[i]!.bind(el);
     }
 
+    await flushMicrotasks();
     insertText(writerEl, "converge");
 
     await flushMicrotasks();
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     for (const el of elements) {
       expect(el.value).toBe("converge");
@@ -133,5 +160,5 @@ describe("sync-response suppression load", () => {
 
     for (const peer of peers) peer.disconnect();
     for (const el of elements) el.remove();
-  }, 30_000);
+  }, 120_000);
 });

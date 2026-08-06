@@ -1,3 +1,4 @@
+import { generateClientId, type ClientId } from "@weavo/core";
 import { createWeavo } from "../../src/Document";
 import { MemoryRoom } from "./memoryTransport";
 
@@ -141,18 +142,46 @@ export type Peer = {
   unbind: () => void;
 };
 
-export const createPeer = (room: MemoryRoom): Peer => {
-  const weavo = createWeavo(room.join());
+export const waitUntilJoined = (
+  weavo: ReturnType<typeof createWeavo>,
+  timeoutMs = 5000,
+) =>
+  new Promise<void>((resolve, reject) => {
+    if (weavo.membership.isJoined()) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(() => {
+      unsub();
+      reject(new Error("timed out waiting for membership join"));
+    }, timeoutMs);
+    const unsub = weavo.membership.onJoined(() => {
+      clearTimeout(timer);
+      unsub();
+      resolve();
+    });
+  });
+
+export const createPeer = async (
+  room: MemoryRoom,
+  options: { clientId?: ClientId; members?: ClientId[] } = {},
+): Promise<Peer> => {
+  const clientId = options.clientId ?? generateClientId();
+  const weavo = createWeavo(room.join(), {
+    clientId,
+    initialMembers: options.members ?? [clientId],
+  });
   const el = createTextarea();
   const unbind = weavo.bind(el);
+  await waitUntilJoined(weavo);
   return { weavo, el, unbind };
 };
 
 export const createPeerPair = async () => {
   const room = new MemoryRoom();
-  const a = createPeer(room);
-  const b = createPeer(room);
-  await flushMicrotasks();
+  const members = [generateClientId(), generateClientId()];
+  const a = await createPeer(room, { clientId: members[0]!, members });
+  const b = await createPeer(room, { clientId: members[1]!, members });
   return { room, a, b };
 };
 
