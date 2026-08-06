@@ -34,3 +34,12 @@ export const getShortId = (
     membership.members.find((m) => m.clientId === clientId)?.shortId ?? null
   );
 };
+
+export const getClientId = (
+  membership: Membership,
+  shortId: number,
+): ClientId | null => {
+  return (
+    membership.members.find((m) => m.shortId === shortId)?.clientId ?? null
+  );
+};
