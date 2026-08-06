@@ -9,7 +9,7 @@ import {
   type DocumentSnapshot,
   type Operation,
 } from "@weavo/core";
-import { createMembership } from "@weavo/membership";
+import { createMembership, getClientId, type MembershipHandle } from "@weavo/membership";
 import { createBuffer, update, type StateVector } from "@weavo/sync";
 import {
   createTransport,
@@ -61,8 +61,21 @@ export const createWeavo = (
     typeof urlOrTransport === "string"
       ? createWebSocketTransport(urlOrTransport)
       : urlOrTransport;
-  const transport = createTransport(rawTransport);
-  const membership = createMembership((message) => transport.send(message), {
+
+  let membership!: MembershipHandle;
+  const transport = createTransport(rawTransport, {
+    idCodec: {
+      encodeVersion: () => membership.getCurrent()?.version ?? 0,
+      shortIdOf: (id) => membership.shortIdOf(id),
+      clientIdOf: (version, shortId) => {
+        const table = membership.getVersion(version);
+        return table ? getClientId(table, shortId) : null;
+      },
+      hasVersion: (version) => membership.getVersion(version) !== null,
+      onMissingVersion: (version) => membership.requestMembership(version),
+    },
+  });
+  membership = createMembership((message) => transport.send(message), {
     clientId,
     ...(options.foundingGraceMs !== undefined
       ? { foundingGraceMs: options.foundingGraceMs }
