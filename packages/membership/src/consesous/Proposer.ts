@@ -182,6 +182,11 @@ export const createProposer = (
       version: proposed.version,
       membership: proposed,
     });
+   
+    broadcast({
+      type: "JOIN_RESPONSE",
+      membership: proposed,
+    });
 
     proposerState.proposedMembership = null;
     proposerState.promises.clear();

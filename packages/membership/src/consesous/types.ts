@@ -46,6 +46,11 @@ export type JoinRequestMessage = {
   clientId: ClientId;
 };
 
+export type JoinResponseMessage = {
+  type: "JOIN_RESPONSE";
+  membership: Membership;
+};
+
 export type LeaveMessage = {
   type: "LEAVE";
   clientId: ClientId;
@@ -80,6 +85,7 @@ export type PresencePayload = {
 
 export type MembershipMessage =
   | JoinRequestMessage
+  | JoinResponseMessage
   | LeaveMessage
   | PrepareMessage
   | PromiseMessage
@@ -95,6 +101,7 @@ export const isMembershipMessage = (msg: unknown): msg is MembershipMessage => {
   const type = (msg as { type?: string }).type;
   return [
     "JOIN_REQUEST",
+    "JOIN_RESPONSE",
     "LEAVE",
     "PREPARE",
     "PROMISE",

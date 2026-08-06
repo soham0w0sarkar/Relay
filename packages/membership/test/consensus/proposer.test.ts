@@ -233,9 +233,14 @@ describe("Proposer", () => {
       peerId: BOB,
     });
     expect(ofType(messages, "COMMIT")).toHaveLength(1);
+    expect(ofType(messages, "JOIN_RESPONSE")).toHaveLength(1);
     expect(messages[0]).toMatchObject({
       type: "COMMIT",
       version: 1,
+      membership: accept.membership,
+    });
+    expect(messages[1]).toMatchObject({
+      type: "JOIN_RESPONSE",
       membership: accept.membership,
     });
 

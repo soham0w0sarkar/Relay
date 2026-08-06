@@ -11,6 +11,7 @@ export type {
   CommitMessage,
   HeartbeatMessage,
   JoinRequestMessage,
+  JoinResponseMessage,
   LeaveMessage,
   MembershipMessage,
   MembershipRequestMessage,
