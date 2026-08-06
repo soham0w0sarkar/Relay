@@ -46,16 +46,17 @@ transport.send({ type: "op", op });
 
 `Message` is the flat union of sync messages and [`MembershipMessage`](https://github.com/soham0w0sarkar/Weavo/tree/main/packages/membership) from `@weavo/membership`. Use `isMembershipMessage` to demux on receive. Membership semantics stay in `@weavo/membership`; transport only carries the wire shapes.
 
-`createTransport` handles binary serialization at the transport boundary. Operations, clocks, state vectors, and message tags use compact binary encodings. Client UUIDs remain full 16-byte UUIDs rather than being replaced with session- or membership-local integers. Membership payloads are JSON encoded inside a versioned binary membership frame.
+`createTransport` handles binary serialization at the transport boundary. Operations, clocks, state vectors, and message tags use compact binary encodings. Pass an `idCodec` (usually wired from `@weavo/membership`) so sync frames carry a membership version and known client ids compress to short integers; unmapped ids stay full 16-byte UUIDs. Membership payloads are JSON encoded inside a versioned binary membership frame.
 
 ## API overview
 
 | Export                          | Description                                         |
 | ------------------------------- | --------------------------------------------------- |
 | `createWebSocketTransport(url)` | Browser WebSocket-backed `RawTransport`             |
-| `createTransport(raw)`          | Typed message layer over a raw transport            |
+| `createTransport(raw, options?)`| Typed message layer over a raw transport            |
 | `RawTransport`                  | Interface for custom transports (tests, Node, etc.) |
 | `Transport`                     | Typed send/receive with parsed `Message` objects    |
+| `IdCodec`                       | Optional shortId / UUID encode-decode lookups       |
 
 ### Custom transport
 

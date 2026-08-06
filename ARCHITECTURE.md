@@ -29,18 +29,20 @@ Rough roadmap (more “what the last problem forced” than a product plan):
 
 @weavo/transport
     ├─ Message types (op / sync / membership wire union)
-    ├─ Versioned binary frames over RawTransport
+    ├─ Versioned binary frames + shortId / UUID id codec
     └─ WebSocket implementation
 
-@weavo/membership          ← building this now
-    ├─ Membership table + versioned store
+@weavo/membership
+    ├─ Membership table + versioned store (UUID ↔ shortId)
     ├─ CASPaxos-style consensus (proposer / acceptor)
+    ├─ JOIN_REQUEST → COMMIT → JOIN_RESPONSE join gate
     ├─ Presence & liveness (next)
     └─ GC frontier (after that)
 
 @weavo/client
     ├─ Textarea adapter + selection transform
-    └─ Orchestrates sync + transport
+    ├─ Membership join before ops / sync-request
+    └─ Orchestrates sync + transport + membership
 
 apps/weavo-server
     └─ Dumb relay — forwards frames, no protocol
@@ -141,7 +143,7 @@ Suppression fixed *who* answers. It didn’t shrink *what* they send. A late joi
 
 ## Transport boundary
 
-`@weavo/transport` uses versioned binary frames. `createTransport` is the only serialize/deserialize point. Core and sync stay on typed objects because typing is Map lookups and pointer walks, constantly. UUIDs currently remain full 16-byte values on the wire; membership-local short-id compression is deliberately not enabled yet.
+`@weavo/transport` uses versioned binary frames (`WIRE_VERSION = 2`). `createTransport` is the only serialize/deserialize point. Core and sync stay on typed objects because typing is Map lookups and pointer walks, constantly. Sync frames carry a membership version; client ids encode as `shortId` when the joined table knows them, otherwise full 16-byte UUIDs.
 
 ---
 
@@ -165,7 +167,7 @@ That’s for *one keystroke from one peer*. Typing is continuous:
 
 \*Broadcast: each frame is copied to everyone. Five peers don’t send 5× if only one is typing — but every listener still *receives* the full fat op. Two people typing at once doubles the send side.
 
-The current binary codec removes JSON field-name overhead but deliberately keeps UUIDs as 16-byte values. A future membership-backed swap from UUID to a 1–2 byte `shortId` can reduce each repeated id site further once versioned membership lookup is wired safely.
+The binary codec removes JSON field-name overhead and, once a peer is joined, swaps known client UUIDs for 1–2 byte `shortId`s against the frame’s membership version. Unmapped clients (and pre-join traffic) still fall back to full UUIDs.
 
 ### Sync-response is where you *feel* it
 
@@ -220,14 +222,14 @@ Classic Paxos wants unicast and often a leader. We have broadcast and a dumb rel
 2. collect `PROMISE` to quorum
 3. carry-forward: if anyone already accepted a value for this slot, take the membership from the highest accepted ballot — don’t invent a conflicting one
 4. one `ACCEPT` (`acceptSent` so retries don’t double-fire)
-5. collect `ACCEPTED` to quorum → `COMMIT`
+5. collect `ACCEPTED` to quorum → `COMMIT`, then proposer-only `JOIN_RESPONSE`
 6. prepare timeout → retry with a higher epoch; `cancel()` wipes in-flight state
 
 **Acceptor** — promise if the ballot is ≥ what you promised; same bar on accept; reply `ACCEPTED`; on `COMMIT`, write the store and clear ballot maps.
 
 Ballots are `(epoch, proposerId)`. Total order, no sequencer.
 
-After a version commits, transport can finally start swapping short ids in for UUIDs on ops that declare that version. Until then we stay correct and wasteful — which is an okay place to be while the protocol settles.
+`@weavo/client` waits on that join path: `JOIN_REQUEST` on open, ops and the first `sync-request` only after `isJoined` (via `COMMIT` / `JOIN_RESPONSE`, or solo founding after `foundingGraceMs`). After join, transport encodes ops/sync against the current membership version with `shortId`s; receivers look up historical tables by the version on the frame (and `requestMembership` if a version is missing).
 
 ---
 
@@ -248,12 +250,12 @@ For every new idea: **whose package?**
 
 ## Still open
 
-- When exactly to flip the wire from UUID → shortId, and how membership version rides on each op
-- Late joiners who missed a `COMMIT` (still no smart server to ask)
+- ~~Membership shortId table + lookups (`shortIdOf` / `clientIdOf`)~~
+- ~~Join gate in `@weavo/client` (`JOIN_REQUEST` → `JOIN_RESPONSE` / founding, ops+sync after `isJoined`)~~
+- ~~Flip the wire from UUID → shortId, and how membership version rides on each op~~
+- Late joiners who missed a `COMMIT` (buffer undecodable frames until `MEMBERSHIP_RESPONSE`)
 - Leave / remove on the same prepare → accept → commit spine
 - Heartbeats for presence / failure detection once the set is stable
 - Tombstone GC once we can compute a frontier over live members
-- Wiring this into `@weavo/client` without leaking ballots into the textarea adapter
-+ ~~Wiring this into `@weavo/client` without leaking ballots into the textarea adapter~~ (join gate + JOIN_RESPONSE done; shortId wire codec still open)
 
 Each of those is probably another “oh, now we need…” — same pattern as how we got here.
