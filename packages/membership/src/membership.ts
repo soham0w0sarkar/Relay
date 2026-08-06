@@ -57,8 +57,8 @@ export const createMembership = (
   let handle: (message: MembershipMessage) => void = () => {};
 
   const outbound = (message: MembershipMessage) => {
-    broadcast(message);
     handle(message);
+    broadcast(message);
   };
 
   const proposer = createProposer(store, outbound, clientId);
