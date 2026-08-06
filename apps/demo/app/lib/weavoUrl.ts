@@ -51,12 +51,27 @@ function toWebSocketOrigin(url: URL): URL {
   return normalized;
 }
 
+/** Prefer the page host when the configured URL still points at localhost. */
+const rewriteLocalhostForLan = (url: URL): URL => {
+  if (typeof window === "undefined") return url;
+
+  const pageHost = window.location.hostname;
+  if (
+    isLocalHost(url.hostname) &&
+    isPrivateNetworkHost(pageHost) &&
+    !isLocalHost(pageHost)
+  ) {
+    url.hostname = pageHost;
+  }
+  return url;
+};
+
 /** WebSocket origin/path without a room query param. */
 export function getWeavoWsBase(): string {
   const configured = process.env.NEXT_PUBLIC_WEAVO_WS_URL?.trim();
-  if (!configured) return DEFAULT_WS_BASE;
+  if (!configured) return defaultWsBase();
 
-  const url = toWebSocketOrigin(new URL(configured));
+  const url = rewriteLocalhostForLan(toWebSocketOrigin(new URL(configured)));
   url.searchParams.delete("room");
   const query = url.searchParams.toString();
   return `${url.origin}${url.pathname}${query ? `?${query}` : ""}`;

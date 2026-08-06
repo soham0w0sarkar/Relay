@@ -1,4 +1,4 @@
-import { getWeavoWsBase } from "./weavoUrl";
+import { getWeavoWsBase, isPrivateNetworkHost } from "./weavoUrl";
 
 export type WeavoReadyResponse = {
   ready: boolean;
@@ -24,7 +24,8 @@ export async function checkWeavoServerReady(): Promise<WeavoReadyResponse> {
   return body;
 }
 
+/** True for hosted production relays — not localhost or same-Wi‑Fi LAN. */
 export function isRemoteWeavoServer(): boolean {
   const { hostname } = new URL(getWeavoWsBase());
-  return hostname !== "localhost" && hostname !== "127.0.0.1";
+  return !isPrivateNetworkHost(hostname);
 }

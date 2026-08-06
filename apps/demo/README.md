@@ -16,7 +16,11 @@ bun run dev --filter=weavo-server
 bun run dev --filter=demo
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Copy the room link and open it in another tab to sync edits.
+Open [http://localhost:3000](http://localhost:3000). Copy the room ID and open Join in another tab to sync edits.
+
+### Phone on the same Wi‑Fi
+
+Next.js prints a **Network** URL (e.g. `http://192.168.1.4:3000`). Open that on your phone. The demo auto-connects the WebSocket to the same host on port `8080` — leave `NEXT_PUBLIC_WEAVO_WS_URL` unset (or pointing at localhost) so LAN rewrite works.
 
 ## Deploy to GitHub Pages
 
@@ -52,7 +56,7 @@ See `vercel.json`. Set root directory to `apps/demo` and `NEXT_PUBLIC_WEAVO_WS_U
 
 | Variable                   | Default               | Notes                                                                                                                 |
 | -------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_WEAVO_WS_URL` | `ws://localhost:8080` | Weavo WebSocket **base** URL (room UUID appended client-side). Set `WEAVO_WS_URL` secret in GitHub Actions for Pages. |
+| `NEXT_PUBLIC_WEAVO_WS_URL` | unset → LAN-aware default | Weavo WebSocket **base** URL (room UUID appended client-side). Unset locally so phones on Wi‑Fi use the page host. Set `WEAVO_WS_URL` secret in GitHub Actions for Pages. |
 | `NEXT_STATIC_EXPORT`       | unset                 | Set to `1` for GitHub Pages static export                                                                             |
 | `NEXT_PUBLIC_BASE_PATH`    | `""`                  | Set to `/Weavo` for this repo on GitHub Pages (`/${{ repository.name }}` in CI)                                       |
 | `PORT` (weavo-server)      | `8080`                | Weavo server only                                                                                                     |
