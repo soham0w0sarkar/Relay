@@ -254,5 +254,6 @@ For every new idea: **whose package?**
 - Heartbeats for presence / failure detection once the set is stable
 - Tombstone GC once we can compute a frontier over live members
 - Wiring this into `@weavo/client` without leaking ballots into the textarea adapter
++ ~~Wiring this into `@weavo/client` without leaking ballots into the textarea adapter~~ (join gate + JOIN_RESPONSE done; shortId wire codec still open)
 
 Each of those is probably another “oh, now we need…” — same pattern as how we got here.
