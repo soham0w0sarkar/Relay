@@ -19,7 +19,7 @@ import {
   type OperationBuffer,
   type StateVector,
 } from "@weavo/sync";
-import type { Message, Transport } from "@weavo/transport";
+import { isMembershipMessage, type Message, type Transport } from "@weavo/transport";
 import type { OnApplied, PeersReq, TimerRef } from "./types";
 
 const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
@@ -171,6 +171,8 @@ export const manageTransport = (
   });
 
   transport.onMessage((message: Message) => {
+    if (isMembershipMessage(message)) return;
+
     switch (message.type) {
       case "op":
         handleIncomingOp(

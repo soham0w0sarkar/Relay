@@ -1,4 +1,9 @@
-import type { webSocketTransport } from "@weavo/transport";
+import {
+  MSG_OP,
+  MSG_SYNC_REQUEST,
+  MSG_SYNC_RESPONSE,
+  type webSocketTransport,
+} from "@weavo/transport";
 import { MemoryRoom } from "./memoryTransport";
 
 export type WireStats = {
@@ -18,11 +23,11 @@ export const createCountingRoom = (): CountingMemoryRoom => {
   const baseJoin = room.join.bind(room);
   const stats: WireStats = { syncRequests: 0, syncResponses: 0, ops: 0 };
 
-  const countMessage = (data: string) => {
-    const msg = JSON.parse(data) as { type: string };
-    if (msg.type === "sync-request") stats.syncRequests++;
-    else if (msg.type === "sync-response") stats.syncResponses++;
-    else if (msg.type === "op") stats.ops++;
+  const countMessage = (data: Uint8Array) => {
+    const tag = data[1];
+    if (tag === MSG_SYNC_REQUEST) stats.syncRequests++;
+    else if (tag === MSG_SYNC_RESPONSE) stats.syncResponses++;
+    else if (tag === MSG_OP) stats.ops++;
   };
 
   const join = (): webSocketTransport => {
@@ -33,7 +38,7 @@ export const createCountingRoom = (): CountingMemoryRoom => {
       onMessage: raw.onMessage.bind(raw),
       onOpen: raw.onOpen.bind(raw),
       onClose: raw.onClose.bind(raw),
-      send(data: string) {
+      send(data: Uint8Array) {
         countMessage(data);
         raw.send(data);
       },

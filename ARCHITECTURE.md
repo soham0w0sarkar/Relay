@@ -25,11 +25,11 @@ Rough roadmap (more “what the last problem forced” than a product plan):
     ├─ State vectors
     ├─ Missing-op discovery
     ├─ Dependency buffer
-    └─ Map ↔ JSON wire helper for state vectors
+    └─ State-vector operations
 
 @weavo/transport
-    ├─ Message types (op / sync-request / sync-response)
-    ├─ JSON over RawTransport
+    ├─ Message types (op / sync / membership wire union)
+    ├─ Versioned binary frames over RawTransport
     └─ WebSocket implementation
 
 @weavo/membership          ← building this now
@@ -116,7 +116,7 @@ Once ops flow, peers need catch-up. State vectors (`Map<ClientId, clock>`) fell 
 
 Then ops started arriving before their origins. Dependency buffer: park them in `waiting` / `buffered` until `canApply`, then `flush` cascades. Deletes wait on their target separately. Suddenly live sync stopped randomly wedging.
 
-Live path today: broadcast `{ type: "op", op }` (JSON). On open, send `{ type: "sync-request", vector, clientId }`.
+Live path today: broadcast `{ type: "op", op }` as a binary frame. On open, send `{ type: "sync-request", vector, clientId }`.
 
 That last part looked fine with two peers. With *N* peers joining at once, every peer with the missing ops answered, and we got an **O(N²)** response storm — same payload, many senders. The relay can’t suppress it (dumb on purpose). So we fixed it on the client:
 
@@ -141,7 +141,7 @@ Suppression fixed *who* answers. It didn’t shrink *what* they send. A late joi
 
 ## Transport boundary
 
-`@weavo/transport` is JSON today. `createTransport` is the only serialize/deserialize point. Core and sync never see strings — they live on objects because typing is Map lookups and pointer walks, constantly.
+`@weavo/transport` uses versioned binary frames. `createTransport` is the only serialize/deserialize point. Core and sync stay on typed objects because typing is Map lookups and pointer walks, constantly. UUIDs currently remain full 16-byte values on the wire; membership-local short-id compression is deliberately not enabled yet.
 
 ---
 
@@ -153,7 +153,7 @@ An op id is `(clientId, clock)`. `clientId` is a UUID. Every insert on the wire 
 
 ### How bad is it, roughly
 
-Today the wire is JSON. A typical single-character insert frame lands around **~170 bytes**. Of that, **~70+ characters are just UUID text** — often ~40% of the frame — before you count quotes, commas, and field names. A concurrent insert with three distinct ids (`id`, `leftOrigin`, `rightOrigin`) pushes past **~210 bytes**, with **three** 36-char UUIDs (~50% of the payload). One `(uuid, clock)` pair alone serializes to ~43 JSON characters; the same pair with a small integer client id is ~6.
+Before binary framing, a typical single-character JSON insert frame landed around **~170 bytes**. Of that, **~70+ characters were just UUID text** — often ~40% of the frame — before counting quotes, commas, and field names. A concurrent insert with three distinct ids (`id`, `leftOrigin`, `rightOrigin`) pushed past **~210 bytes**, with **three** 36-char UUIDs (~50% of the payload). One `(uuid, clock)` pair alone serialized to ~43 JSON characters; the same pair with a small integer client id was ~6.
 
 That’s for *one keystroke from one peer*. Typing is continuous:
 
@@ -165,11 +165,11 @@ That’s for *one keystroke from one peer*. Typing is continuous:
 
 \*Broadcast: each frame is copied to everyone. Five peers don’t send 5× if only one is typing — but every listener still *receives* the full fat op. Two people typing at once doubles the send side.
 
-Swap UUID → `shortId` on the same JSON shape (plus a membership version field) and the same insert drops to around **~100 bytes** — roughly **40% smaller** on the hot path we measured. Binary encoding later makes the gap wider still (16-byte UUID vs 1–2 byte short id, times every id site on every op). Over a long session that isn’t a rounding error; it’s most of what you’re shipping for “the letter `a`”.
+The current binary codec removes JSON field-name overhead but deliberately keeps UUIDs as 16-byte values. A future membership-backed swap from UUID to a 1–2 byte `shortId` can reduce each repeated id site further once versioned membership lookup is wired safely.
 
 ### Sync-response is where you *feel* it
 
-Live ops dribble. A `sync-response` dumps history in one shot — every missing insert still carrying those UUIDs. Rough JSON sizes for a catch-up packed with single-character inserts (3 requester ids on the envelope; the ops are the bulk):
+Live ops dribble. A `sync-response` dumps history in one shot — every missing insert still carrying those UUIDs. Historical JSON sizes for a catch-up packed with single-character inserts (3 requester ids on the envelope; the ops are the bulk):
 
 | Missing ops | What that is roughly | UUID-form response | shortId-form response | You don’t send |
 | ----------- | -------------------- | ------------------ | --------------------- | -------------- |

@@ -1,10 +1,13 @@
 import type { ClientId, Operation } from "@weavo/core";
+import type { MembershipMessage } from "@weavo/membership";
 import type { StateVector } from "@weavo/sync";
 import type { webSocketTransport } from "./webSocketTransport/types";
 
 export type RawTransport = webSocketTransport;
 
-export type Message =
+export type { MembershipMessage };
+
+export type SyncMessage =
   | {
       type: "op";
       op: Operation;
@@ -20,21 +23,7 @@ export type Message =
       clientIds: ClientId[];
     };
 
-type WireMessage =
-  | {
-      type: "op";
-      op: Operation;
-    }
-  | {
-      type: "sync-request";
-      vector: Record<ClientId, number>;
-      clientId: ClientId;
-    }
-  | {
-      type: "sync-response";
-      ops: Operation[];
-      clientIds: ClientId[];
-    };
+export type Message = SyncMessage | MembershipMessage;
 
 export type Transport = {
   connect(): void;
@@ -47,5 +36,3 @@ export type Transport = {
   onOpen(cb: () => void): () => void;
   onClose(cb: () => void): () => void;
 };
-
-export type { WireMessage };

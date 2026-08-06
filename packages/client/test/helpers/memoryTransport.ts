@@ -1,10 +1,10 @@
 import type { webSocketTransport } from "@weavo/transport";
 
 type Handler = () => void;
-type MessageHandler = (data: string) => void;
+type MessageHandler = (data: Uint8Array) => void;
 
 type MemoryClient = {
-  deliver: (data: string) => void;
+  deliver: (data: Uint8Array) => void;
 };
 
 export class MemoryRoom {
@@ -17,7 +17,7 @@ export class MemoryRoom {
     const room = this;
 
     const client: MemoryClient = {
-      deliver(data: string) {
+      deliver(data: Uint8Array) {
         for (const cb of messageHandlers) cb(data);
       },
     };
@@ -35,7 +35,7 @@ export class MemoryRoom {
         for (const cb of closeHandlers) cb();
       },
 
-      send(data: string) {
+      send(data: Uint8Array) {
         for (const peer of room.clients) {
           if (peer !== client) peer.deliver(data);
         }

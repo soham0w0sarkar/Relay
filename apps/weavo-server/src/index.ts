@@ -44,6 +44,7 @@ const websocketUrl = (req: Request) => {
 
 Bun.serve<RoomData>({
   port: PORT,
+  hostname: "0.0.0.0",
   fetch(req, server) {
     const url = new URL(req.url);
 
@@ -90,11 +91,10 @@ Bun.serve<RoomData>({
     },
     message(ws, message) {
       const peers = getRoom(ws.data.room);
-      const data = typeof message === "string" ? message : message.toString();
 
       for (const peer of peers) {
         if (peer !== ws && peer.readyState === WebSocket.OPEN) {
-          peer.send(data);
+          peer.send(message);
         }
       }
     },
@@ -110,4 +110,6 @@ Bun.serve<RoomData>({
   },
 });
 
-console.log(`Weavo WebSocket server listening on ws://localhost:${PORT}`);
+console.log(`Weavo WebSocket server listening on ws://0.0.0.0:${PORT}`);
+console.log(`Local:   ws://localhost:${PORT}`);
+console.log(`Network: open the demo Network URL on your phone (same Wi‑Fi)`);

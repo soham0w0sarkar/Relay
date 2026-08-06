@@ -4,7 +4,7 @@
 
 # @weavo/transport
 
-WebSocket transport for Weavo. Encodes CRDT operations and state-vector sync messages as JSON over a pluggable raw transport.
+WebSocket transport for Weavo. Encodes CRDT operations, state-vector sync, and membership consensus messages into versioned binary frames over a pluggable raw transport.
 
 Installed automatically with [`@weavo/client`](https://www.npmjs.com/package/@weavo/client). Use this package directly for custom backends, in-memory test doubles, or server-side relay logic.
 
@@ -37,13 +37,16 @@ transport.send({ type: "op", op });
 
 ## Message types
 
-| Type            | Payload              | Purpose                                    |
-| --------------- | -------------------- | ------------------------------------------ |
-| `op`            | `Operation`          | Broadcast a local or remote CRDT operation |
-| `sync-request`  | `vector`, `clientId` | Ask peers for missing operations           |
-| `sync-response` | `ops`, `clientIds`   | Reply with operations the requester lacks  |
+| Type            | Payload              | Purpose                                                            |
+| --------------- | -------------------- | ------------------------------------------------------------------ |
+| `op`            | `Operation`          | Broadcast a local or remote CRDT operation                         |
+| `sync-request`  | `vector`, `clientId` | Ask peers for missing operations                                   |
+| `sync-response` | `ops`, `clientIds`   | Reply with operations the requester lacks                          |
+| membership      | `MembershipMessage`  | CASPaxos join/leave/presence (`PREPARE`, `COMMIT`, `HEARTBEAT`, …) |
 
-`createTransport` handles JSON serialization and converts state-vector maps at the transport boundary.
+`Message` is the flat union of sync messages and [`MembershipMessage`](https://github.com/soham0w0sarkar/Weavo/tree/main/packages/membership) from `@weavo/membership`. Use `isMembershipMessage` to demux on receive. Membership semantics stay in `@weavo/membership`; transport only carries the wire shapes.
+
+`createTransport` handles binary serialization at the transport boundary. Operations, clocks, state vectors, and message tags use compact binary encodings. Client UUIDs remain full 16-byte UUIDs rather than being replaced with session- or membership-local integers. Membership payloads are JSON encoded inside a versioned binary membership frame.
 
 ## API overview
 
@@ -66,7 +69,7 @@ const raw: RawTransport = {
   disconnect() {
     /* ... */
   },
-  send(data: string) {
+  send(data: Uint8Array) {
     /* ... */
   },
   onMessage(cb) {
@@ -85,11 +88,12 @@ const transport = createTransport(raw);
 
 ## Related packages
 
-| Package         | Role                                         |
-| --------------- | -------------------------------------------- |
-| `@weavo/core`   | CRDT operations carried in messages          |
-| `@weavo/sync`   | State vectors used in sync requests          |
-| `@weavo/client` | Wires transport to a textarea out of the box |
+| Package             | Role                                         |
+| ------------------- | -------------------------------------------- |
+| `@weavo/core`       | CRDT operations carried in messages          |
+| `@weavo/sync`       | State vectors used in sync requests          |
+| `@weavo/membership` | Membership / consensus message types         |
+| `@weavo/client`     | Wires transport to a textarea out of the box |
 
 ## Development
 

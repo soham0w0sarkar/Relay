@@ -10,6 +10,12 @@ const defaultOptions = {
   reconnectMaxDelay: 30_000,
 } satisfies Required<WebSocketTransportOptions>;
 
+const toUint8Array = (data: unknown): Uint8Array => {
+  if (data instanceof Uint8Array) return data;
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  throw new Error("Unsupported WebSocket message type");
+};
+
 export const createWebSocketTransport = (
   url: string,
   options: WebSocketTransportOptions = {},
@@ -23,9 +29,9 @@ export const createWebSocketTransport = (
   let closedIntentionally = false;
   let reconnectAttempt = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
-  const pendingSend: string[] = [];
+  const pendingSend: Uint8Array[] = [];
 
-  const messageListeners = new Set<(data: string) => void>();
+  const messageListeners = new Set<(data: Uint8Array) => void>();
   const openListeners = new Set<() => void>();
   const closeListeners = new Set<() => void>();
 
@@ -71,6 +77,7 @@ export const createWebSocketTransport = (
     }
 
     socket = new WebSocket(url);
+    socket.binaryType = "arraybuffer";
 
     socket.addEventListener("open", () => {
       reconnectAttempt = 0;
@@ -79,7 +86,8 @@ export const createWebSocketTransport = (
     });
 
     socket.addEventListener("message", (event) => {
-      messageListeners.forEach((cb) => cb(event.data));
+      const data = toUint8Array(event.data);
+      messageListeners.forEach((cb) => cb(data));
     });
 
     socket.addEventListener("close", () => {
@@ -117,7 +125,7 @@ export const createWebSocketTransport = (
       socket?.close();
     },
 
-    send(data: string) {
+    send(data: Uint8Array) {
       if (isOpen()) {
         socket!.send(data);
         return;

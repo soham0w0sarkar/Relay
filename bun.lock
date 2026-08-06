@@ -59,7 +59,7 @@
       "name": "@weavo/client",
       "version": "1.2.2",
       "dependencies": {
-        "@weavo/core": "^1.2.1",
+        "@weavo/core": "^1.2.2",
         "@weavo/sync": "^1.1.1",
         "@weavo/transport": "^1.1.1",
       },
@@ -134,6 +134,7 @@
       "version": "1.1.1",
       "dependencies": {
         "@weavo/core": "^1.2.1",
+        "@weavo/membership": "workspace:*",
         "@weavo/sync": "^1.1.1",
       },
       "devDependencies": {
