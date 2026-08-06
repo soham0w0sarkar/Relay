@@ -9,10 +9,10 @@ import {
   type Operation,
   type OperationId,
 } from "@weavo/core";
+import type { MembershipHandle } from "@weavo/membership";
 import {
   addToBuffer,
   canApply,
-  createBuffer,
   flush,
   missingOps,
   update,
@@ -25,7 +25,7 @@ import type { OnApplied, PeersReq, TimerRef } from "./types";
 const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
   const operations: Operation[] = [];
 
-  ops.map((op) => {
+  for (const op of ops) {
     const node = nd.nodes.get(toKey(op));
 
     if (!node) throw new Error(`${op} isn't present`);
@@ -37,10 +37,9 @@ const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
       node.rightOrigin,
     );
 
-    if (node?.tombstone) operations.push(insertOp, createDeleteOperation(op));
-
-    return operations.push(insertOp);
-  });
+    if (node.tombstone) operations.push(insertOp, createDeleteOperation(op));
+    else operations.push(insertOp);
+  }
 
   return operations;
 };
@@ -134,7 +133,7 @@ const handleSyncRes = (
   const isMinePresent = clientIds.includes(opClientId);
 
   if (isMinePresent) {
-    ops.map((op) => {
+    for (const op of ops) {
       handleIncomingOp(
         buffer,
         doc,
@@ -144,7 +143,7 @@ const handleSyncRes = (
         transport,
         syncReqTimerRef,
       );
-    });
+    }
     return;
   }
 
@@ -157,21 +156,44 @@ export const manageTransport = (
   sv: StateVector,
   buffer: OperationBuffer,
   onApplied: OnApplied,
+  membership: MembershipHandle,
 ) => {
   const timerRef: TimerRef = { current: undefined };
   const syncReqTimerRef: TimerRef = { current: undefined };
   const requestQueue: PeersReq = [];
 
-  transport.onOpen(() => {
+  let opened = false;
+  let joined = false;
+  let syncRequested = false;
+
+  const requestInitialSync = () => {
+    if (!opened || !joined || syncRequested) return;
+    syncRequested = true;
     transport.send({
       type: "sync-request",
       vector: sv,
       clientId: doc.clientId,
     });
+  };
+
+  transport.onOpen(() => {
+    opened = true;
+    if (!membership.isJoined()) membership.requestJoin(doc.clientId);
+    requestInitialSync();
+  });
+
+  membership.onJoined(() => {
+    joined = true;
+    requestInitialSync();
   });
 
   transport.onMessage((message: Message) => {
-    if (isMembershipMessage(message)) return;
+    if (isMembershipMessage(message)) {
+      membership.onMessage(message);
+      return;
+    }
+
+    if (!membership.isJoined()) return;
 
     switch (message.type) {
       case "op":

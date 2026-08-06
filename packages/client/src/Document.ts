@@ -9,27 +9,30 @@ import {
   type DocumentSnapshot,
   type Operation,
 } from "@weavo/core";
+import { createMembership } from "@weavo/membership";
+import { createBuffer, update, type StateVector } from "@weavo/sync";
 import {
   createTransport,
   createWebSocketTransport,
   type RawTransport,
 } from "@weavo/transport";
-import { manageTransport } from "./transport";
-import { createBuffer, update, type StateVector } from "@weavo/sync";
 import { createSubscription } from "./Subscription";
-import { textChangeFromDiff, toTextChange } from "./textChange";
 import {
   reconcileBefore,
   transformPosition,
   transformSnapshot,
   type InputSnapshot,
 } from "./inputSnapshot";
+import { textChangeFromDiff, toTextChange } from "./textChange";
+import { manageTransport } from "./transport";
 import type { TextChange } from "./types";
 
 export type WeavoOptions = {
-  /** Stable per-tab identity. When omitted, a new id is generated. */
   clientId?: ClientId;
   onOp?: (op: Operation) => void;
+  foundingGraceMs?: number;
+  initialMembers?: ClientId[];
+  initialVersion?: number;
   initial?: {
     snapshot: DocumentSnapshot;
     delta?: Operation[];
@@ -59,6 +62,18 @@ export const createWeavo = (
       ? createWebSocketTransport(urlOrTransport)
       : urlOrTransport;
   const transport = createTransport(rawTransport);
+  const membership = createMembership((message) => transport.send(message), {
+    clientId,
+    ...(options.foundingGraceMs !== undefined
+      ? { foundingGraceMs: options.foundingGraceMs }
+      : {}),
+    ...(options.initialMembers !== undefined
+      ? { initialMembers: options.initialMembers }
+      : {}),
+    ...(options.initialVersion !== undefined
+      ? { initialVersion: options.initialVersion }
+      : {}),
+  });
   const subscription = createSubscription();
 
   let before: InputSnapshot | null = null;
@@ -91,6 +106,8 @@ export const createWeavo = (
   };
 
   const processLocalInput = (event: InputEvent, snapshot: InputSnapshot) => {
+    if (!membership.isJoined()) return;
+
     const applied = localInput(event, doc, snapshot);
     if (!applied) return;
     applied.forEach(({ op, index }) => {
@@ -103,7 +120,7 @@ export const createWeavo = (
     });
   };
 
-  manageTransport(transport, doc, sv, buffer, onApplied);
+  manageTransport(transport, doc, sv, buffer, onApplied, membership);
   transport.connect();
 
   const bind = (el: HTMLTextAreaElement) => {
@@ -168,6 +185,10 @@ export const createWeavo = (
     bind,
     textSubscribe: subscription.subscribe,
     snapshot: (): DocumentSnapshot => takeSnapshot(doc, sv),
-    disconnect: () => transport.disconnect(),
+    disconnect: () => {
+      membership.cancel();
+      transport.disconnect();
+    },
+    membership,
   };
 };
