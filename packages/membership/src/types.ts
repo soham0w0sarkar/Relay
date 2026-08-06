@@ -25,6 +25,7 @@ export type CreateMembershipOptions = {
   clientId: ClientId;
   initialMembers?: ClientId[];
   initialVersion?: number;
+  foundingGraceMs?: number;
 };
 
 export type MembershipHandle = {
@@ -37,4 +38,7 @@ export type MembershipHandle = {
   getCurrent: () => Membership | null;
   getVersion: (version: number) => Membership | null;
   shortIdOf: (clientId: ClientId) => number | null;
+  clientIdOf: (shortId: number) => ClientId | null;
+  isJoined: () => boolean;
+  onJoined: (listener: (membership: Membership) => void) => () => void;
 };

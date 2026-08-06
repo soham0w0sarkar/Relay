@@ -25,44 +25,71 @@ afterEach(() => {
 });
 
 describe("createMembership", () => {
-  test("seeds store with the local client and exposes shortIds", () => {
+  test("starts unjoined with an empty membership table", () => {
     const membership = createMembership(() => {}, { clientId: ALICE });
 
-    expect(membership.getCurrent()?.version).toBe(0);
-    expect(membership.shortIdOf(ALICE)).toBe(0);
-    expect(membership.shortIdOf(BOB)).toBeNull();
+    expect(membership.isJoined()).toBe(false);
+    expect(membership.getCurrent()?.members).toEqual([]);
+    expect(membership.shortIdOf(ALICE)).toBeNull();
   });
 
-  test("solo requestJoin runs PREPARE→COMMIT via onMessage routing", () => {
+  test("seeds joined when initialMembers includes self", () => {
+    const membership = createMembership(() => {}, {
+      clientId: ALICE,
+      initialMembers: [ALICE],
+    });
+
+    expect(membership.isJoined()).toBe(true);
+    expect(membership.shortIdOf(ALICE)).toBe(0);
+  });
+
+  test("solo requestJoin founds the room and emits JOIN_RESPONSE", () => {
     const bus: MembershipMessage[] = [];
     const membership = createMembership((msg) => bus.push(msg), {
       clientId: ALICE,
+      foundingGraceMs: 0,
     });
 
-    membership.requestJoin(BOB);
+    const joined: unknown[] = [];
+    membership.onJoined((m) => joined.push(m));
 
-    // Drain any immediate local-only side effects, then fire batch timer
-    const drain = () => {
-      while (bus.length > 0) {
-        const batch = bus.splice(0);
-        for (const msg of batch) membership.onMessage(msg);
-      }
-    };
+    membership.requestJoin();
+    jest.advanceTimersByTime(0); // founding grace
+    jest.advanceTimersByTime(200); // proposal batch window
 
-    drain();
-    jest.advanceTimersByTime(200);
-    drain();
-
-    expect(membership.store.currentVersion).toBe(1);
+    expect(membership.isJoined()).toBe(true);
     expect(membership.getCurrent()?.members.map((m) => m.clientId)).toEqual([
       ALICE,
-      BOB,
     ]);
+    expect(bus.some((m) => m.type === "JOIN_RESPONSE")).toBe(true);
+    expect(joined).toHaveLength(1);
+  });
+
+  test("JOIN_RESPONSE commits and marks the joiner as joined", () => {
+    const membership = createMembership(() => {}, { clientId: BOB });
+    expect(membership.isJoined()).toBe(false);
+
+    membership.onMessage({
+      type: "JOIN_RESPONSE",
+      membership: {
+        version: 1,
+        members: [
+          { clientId: ALICE, shortId: 0 },
+          { clientId: BOB, shortId: 1 },
+        ],
+      },
+    });
+
+    expect(membership.isJoined()).toBe(true);
+    expect(membership.store.currentVersion).toBe(1);
     expect(membership.shortIdOf(BOB)).toBe(1);
   });
 
   test("MEMBERSHIP_RESPONSE commits into the store", () => {
-    const membership = createMembership(() => {}, { clientId: ALICE });
+    const membership = createMembership(() => {}, {
+      clientId: ALICE,
+      initialMembers: [ALICE],
+    });
     membership.onMessage({
       type: "MEMBERSHIP_RESPONSE",
       version: 2,

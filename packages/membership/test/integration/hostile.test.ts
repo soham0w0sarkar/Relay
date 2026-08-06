@@ -62,6 +62,7 @@ class HostileRoom {
   broadcast(_from: ClientId, msg: MembershipMessage) {
     this.stats.sent++;
     for (const to of this.peers.keys()) {
+      if (to === _from) continue;
       const dropRate =
         msg.type === "COMMIT" ? this.opts.commitDropRate : this.opts.dropRate;
       if (this.rng() < dropRate) {
@@ -233,6 +234,7 @@ describe("hostile membership convergence", () => {
 
     const broadcast = (from: ClientId, msg: MembershipMessage) => {
       for (const to of peers.keys()) {
+        if (to === from) continue;
         if (partitioned && sideOf(from) !== sideOf(to)) continue;
         if (rng() < dropRate) continue;
         pending.push({
@@ -317,8 +319,15 @@ describe("hostile membership convergence", () => {
       room.peers.get(founders[i % 3]!)!.requestJoin(newbie);
     }
 
-    room.advance(8000);
+    for (let round = 0; round < 6; round++) {
+      room.advance(2500);
+      const sample = room.peers.get(founders[0]!)!.getCurrent();
+      if (sample?.members.some((m) => m.clientId === newbie)) break;
+      room.peers.get(founders[round % 3]!)!.requestJoin(newbie);
+    }
+
     room.antiEntropy();
+    room.advance(50);
 
     const tables = room.tables();
     const reference = tables[0]!;

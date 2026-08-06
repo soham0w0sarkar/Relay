@@ -5,6 +5,7 @@ import {
   commit,
   createMembershipStore,
   get,
+  getClientId,
   getShortId,
 } from "./membershipStore";
 import type {
@@ -12,47 +13,108 @@ import type {
   MembershipHandle,
   MembershipMessage,
 } from "./types";
+import type { Membership } from "./membershipStore/types";
+
+const DEFAULT_FOUNDING_GRACE_MS = 750;
 
 export const createMembership = (
   broadcast: (message: MembershipMessage) => void,
   options: CreateMembershipOptions,
 ): MembershipHandle => {
   const { clientId } = options;
+  const initialMembers = options.initialMembers ?? [];
+  const foundingGraceMs = options.foundingGraceMs ?? DEFAULT_FOUNDING_GRACE_MS;
   const store = createMembershipStore(
-    buildMembership(
-      options.initialVersion ?? 0,
-      options.initialMembers ?? [clientId],
-    ),
+    buildMembership(options.initialVersion ?? 0, initialMembers),
   );
 
-  const proposer = createProposer(store, broadcast, clientId);
-  const acceptor = createAcceptor(store, broadcast, clientId);
+  const joinListeners = new Set<(membership: Membership) => void>();
+  let joined = initialMembers.includes(clientId);
+  let founding = false;
+  let foundingTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const onMessage = (message: MembershipMessage) => {
+  const clearFoundingTimer = () => {
+    if (foundingTimer !== null) {
+      clearTimeout(foundingTimer);
+      foundingTimer = null;
+    }
+  };
+
+  const notifyIfJoined = () => {
+    if (joined) return;
+    const current = get(store, store.currentVersion);
+    if (!current?.members.some((member) => member.clientId === clientId)) {
+      return;
+    }
+    joined = true;
+    founding = false;
+    clearFoundingTimer();
+    for (const listener of joinListeners) listener(current);
+  };
+
+  const canRunConsensus = () => joined || founding;
+
+  let handle: (message: MembershipMessage) => void = () => {};
+
+  const outbound = (message: MembershipMessage) => {
+    broadcast(message);
+    handle(message);
+  };
+
+  const proposer = createProposer(store, outbound, clientId);
+  const acceptor = createAcceptor(store, outbound, clientId);
+
+  const beginFounding = (joiningId: ClientId) => {
+    if (joined || founding) return;
+    founding = true;
+    proposer.onJoinRequest({ type: "JOIN_REQUEST", clientId: joiningId });
+  };
+
+  handle = (message: MembershipMessage) => {
     switch (message.type) {
-      case "JOIN_REQUEST":
-        proposer.onJoinRequest(message);
+      case "JOIN_REQUEST": {
+        const current = get(store, store.currentVersion);
+        const empty = current !== null && current.members.length === 0;
+
+        if (joined) {
+          proposer.onJoinRequest(message);
+          break;
+        }
+
+        if (empty && message.clientId !== clientId) {
+          beginFounding(clientId);
+          proposer.onJoinRequest(message);
+        }
         break;
+      }
       case "PREPARE":
-        acceptor.onPrepare(message);
+        if (canRunConsensus()) acceptor.onPrepare(message);
         break;
       case "PROMISE":
-        proposer.onPromise(message);
+        if (canRunConsensus()) proposer.onPromise(message);
         break;
       case "ACCEPT":
-        acceptor.onAccept(message);
+        if (canRunConsensus()) acceptor.onAccept(message);
         break;
       case "ACCEPTED":
-        proposer.onAccepted(message);
+        if (canRunConsensus()) proposer.onAccepted(message);
         break;
       case "COMMIT":
         acceptor.onCommit(message);
+        proposer.cancel();
+        notifyIfJoined();
+        break;
+      case "JOIN_RESPONSE":
+        commit(store, message.membership);
+        proposer.cancel();
+        notifyIfJoined();
         break;
       case "MEMBERSHIP_REQUEST":
-        acceptor.onMembershipRequest(message);
+        if (joined) acceptor.onMembershipRequest(message);
         break;
       case "MEMBERSHIP_RESPONSE":
         commit(store, message.membership);
+        notifyIfJoined();
         break;
       default:
         break;
@@ -60,13 +122,24 @@ export const createMembership = (
   };
 
   const requestJoin = (joiningId: ClientId = clientId) => {
-    const msg = { type: "JOIN_REQUEST" as const, clientId: joiningId };
-    broadcast(msg);
-    proposer.onJoinRequest(msg);
+    outbound({ type: "JOIN_REQUEST", clientId: joiningId });
+
+    if (
+      !joined &&
+      joiningId === clientId &&
+      get(store, store.currentVersion)?.members.length === 0 &&
+      foundingTimer === null
+    ) {
+      foundingTimer = setTimeout(() => {
+        foundingTimer = null;
+        if (joined) return;
+        beginFounding(clientId);
+      }, foundingGraceMs);
+    }
   };
 
   const requestMembership = (version: number) => {
-    broadcast({
+    outbound({
       type: "MEMBERSHIP_REQUEST",
       version,
       requesterId: clientId,
@@ -76,15 +149,33 @@ export const createMembership = (
   return {
     clientId,
     store,
-    onMessage,
+    onMessage: handle,
     requestJoin,
     requestMembership,
-    cancel: proposer.cancel,
+    cancel: () => {
+      clearFoundingTimer();
+      proposer.cancel();
+    },
     getCurrent: () => get(store, store.currentVersion),
     getVersion: (version) => get(store, version),
     shortIdOf: (id) => {
       const current = get(store, store.currentVersion);
       return current ? getShortId(current, id) : null;
+    },
+    clientIdOf: (shortId) => {
+      const current = get(store, store.currentVersion);
+      return current ? getClientId(current, shortId) : null;
+    },
+    isJoined: () => joined,
+    onJoined: (listener) => {
+      joinListeners.add(listener);
+      if (joined) {
+        const current = get(store, store.currentVersion);
+        if (current) listener(current);
+      }
+      return () => {
+        joinListeners.delete(listener);
+      };
     },
   };
 };
