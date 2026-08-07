@@ -1,4 +1,5 @@
 import { ROOT_ID, type ClientId, type OperationId } from "@weavo/core";
+import { unresolvedClientId } from "@weavo/sync";
 import type { Reader, Writer } from "./buffer";
 import { readU8, writeU8 } from "./buffer";
 import type { IdCodec } from "./idCodec";
@@ -38,13 +39,10 @@ export const decodeClientId = (
 
   if (tag === OP_ID_SHORT) {
     const shortId = readVarint(reader);
-    const clientId = codec.clientIdOf(membershipVersion, shortId);
-    if (clientId === null) {
-      throw new Error(
-        `Unknown shortId ${shortId} for membership version ${membershipVersion}`,
-      );
-    }
-    return clientId;
+    return (
+      codec.clientIdOf(membershipVersion, shortId) ??
+      unresolvedClientId(membershipVersion, shortId)
+    );
   }
 
   if (tag === OP_ID_UUID) return readUuid(reader);

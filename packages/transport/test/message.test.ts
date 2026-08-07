@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { isMembershipMessage } from "@weavo/membership";
+import { unresolvedClientId } from "@weavo/sync";
 import { MSG_MEMBERSHIP, MSG_SYNC_REQUEST } from "../src/codec";
 import { createTransport } from "../src/transport";
 import type { Message, RawTransport } from "../src/types";
@@ -95,7 +96,7 @@ describe("createTransport binary messages", () => {
     expect(isMembershipMessage(received[0])).toBe(true);
   });
 
-  test("missing membership version requests the table and skips the frame", () => {
+  test("unknown membership version keeps shortIds unresolved and asks for the table", () => {
     const missing: number[] = [];
     const table = new Map([[ALICE, 0]]);
     const byShort = new Map([[0, ALICE]]);
@@ -129,7 +130,14 @@ describe("createTransport binary messages", () => {
     transport.onMessage((m) => received.push(m));
     deliver(sent[0]!);
 
-    expect(received).toEqual([]);
+    const unresolved = unresolvedClientId(9, 0);
+    expect(received).toEqual([
+      {
+        type: "sync-request",
+        clientId: unresolved,
+        vector: new Map([[unresolved, 2]]),
+      },
+    ]);
     expect(missing).toEqual([9]);
   });
 });

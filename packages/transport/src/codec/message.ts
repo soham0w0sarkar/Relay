@@ -11,14 +11,8 @@ import {
   writeU8,
 } from "./buffer";
 import type { IdCodec } from "./idCodec";
-import {
-  MissingMembershipVersionError,
-  uuidOnlyCodec,
-} from "./idCodec";
-import {
-  decodeMembershipMessage,
-  encodeMembershipMessage,
-} from "./membership";
+import { uuidOnlyCodec } from "./idCodec";
+import { decodeMembershipMessage, encodeMembershipMessage } from "./membership";
 import {
   decodeOperation,
   encodeOperation,
@@ -36,12 +30,9 @@ import {
 } from "./tags";
 import { readVarint, writeVarint } from "./varint";
 
-const ensureMembershipVersion = (
-  membershipVersion: number,
-  codec: IdCodec,
-) => {
+const noteMembershipVersion = (membershipVersion: number, codec: IdCodec) => {
   if (codec.hasVersion && !codec.hasVersion(membershipVersion)) {
-    throw new MissingMembershipVersionError(membershipVersion);
+    codec.onMissingVersion?.(membershipVersion);
   }
 };
 
@@ -67,7 +58,8 @@ export const encodeMessage = (
     writeU8(writer, MSG_SYNC_RESPONSE);
     writeVarint(writer, codec.encodeVersion());
     writeVarint(writer, message.ops.length);
-    for (const operation of message.ops) writeOperation(writer, operation, codec);
+    for (const operation of message.ops)
+      writeOperation(writer, operation, codec);
     writeVarint(writer, message.clientIds.length);
     for (const clientId of message.clientIds) {
       encodeClientId(writer, clientId, codec);
@@ -95,7 +87,7 @@ export const decodeMessage = (
 
   if (tag === MSG_OP) {
     const membershipVersion = readVarint(reader);
-    ensureMembershipVersion(membershipVersion, codec);
+    noteMembershipVersion(membershipVersion, codec);
     const operationBytes = readBytes(reader, readVarint(reader));
     message = {
       type: "op",
@@ -103,7 +95,7 @@ export const decodeMessage = (
     };
   } else if (tag === MSG_SYNC_REQUEST) {
     const membershipVersion = readVarint(reader);
-    ensureMembershipVersion(membershipVersion, codec);
+    noteMembershipVersion(membershipVersion, codec);
     message = {
       type: "sync-request",
       vector: decodeStateVector(reader, membershipVersion, codec),
@@ -111,7 +103,7 @@ export const decodeMessage = (
     };
   } else if (tag === MSG_SYNC_RESPONSE) {
     const membershipVersion = readVarint(reader);
-    ensureMembershipVersion(membershipVersion, codec);
+    noteMembershipVersion(membershipVersion, codec);
     const ops: Operation[] = [];
     const operationCount = readVarint(reader);
     for (let index = 0; index < operationCount; index++) {

@@ -15,13 +15,3 @@ export const uuidOnlyCodec: IdCodec = {
   clientIdOf: () => null,
   hasVersion: () => true,
 };
-
-export class MissingMembershipVersionError extends Error {
-  readonly version: number;
-
-  constructor(version: number) {
-    super(`Missing membership version ${version}`);
-    this.name = "MissingMembershipVersionError";
-    this.version = version;
-  }
-}

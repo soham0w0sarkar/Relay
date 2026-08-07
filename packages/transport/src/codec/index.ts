@@ -1,9 +1,6 @@
 export { decodeMessage, encodeMessage } from "./message";
 export { decodeOperation, encodeOperation } from "./operation";
-export {
-  decodeMembershipMessage,
-  encodeMembershipMessage,
-} from "./membership";
+export { decodeMembershipMessage, encodeMembershipMessage } from "./membership";
 export {
   base64ToBytes,
   bytesToBase64,
@@ -13,11 +10,7 @@ export {
   encodeDocumentSnapshot,
   PERSIST_VERSION,
 } from "./persistence";
-export {
-  MissingMembershipVersionError,
-  uuidOnlyCodec,
-  type IdCodec,
-} from "./idCodec";
+export { uuidOnlyCodec, type IdCodec } from "./idCodec";
 export {
   MEM_ACCEPT,
   MEM_ACCEPTED,

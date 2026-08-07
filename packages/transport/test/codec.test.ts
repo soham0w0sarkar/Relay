@@ -4,13 +4,14 @@ import {
   createInsertOperation,
   ROOT_ID,
   type ClientId,
+  type Operation,
 } from "@weavo/core";
+import { pendingMembershipVersion, unresolvedClientId } from "@weavo/sync";
 import {
   decodeMessage,
   decodeOperation,
   encodeMessage,
   encodeOperation,
-  MissingMembershipVersionError,
   OP_ID_SHORT,
   OP_ID_UUID,
   readVarint,
@@ -36,7 +37,8 @@ const byShort = new Map<number, ClientId>([
 const shortCodec = (version = 1): IdCodec => ({
   encodeVersion: () => version,
   shortIdOf: (id) => table.get(id) ?? null,
-  clientIdOf: (v, shortId) => (v === version ? (byShort.get(shortId) ?? null) : null),
+  clientIdOf: (v, shortId) =>
+    v === version ? (byShort.get(shortId) ?? null) : null,
   hasVersion: (v) => v === version,
 });
 
@@ -199,9 +201,7 @@ describe("message codec", () => {
     for (const message of messages) {
       const bytes = encodeMessage(message);
       expect(bytes[1]).toBe(0x04); // MSG_MEMBERSHIP
-      expect(bytes.byteLength).toBeLessThan(
-        JSON.stringify(message).length + 8,
-      );
+      expect(bytes.byteLength).toBeLessThan(JSON.stringify(message).length + 8);
       expect(decodeMessage(bytes)).toEqual(message);
     }
   });
@@ -221,7 +221,7 @@ describe("message codec", () => {
     expect(bytes.byteLength).toBeLessThan(uuidBytes.byteLength);
   });
 
-  test("missing membership version throws before invoking codec callback", () => {
+  test("unknown membership version decodes with unresolved shortIds", () => {
     const missing: number[] = [];
     const codec: IdCodec = {
       ...shortCodec(1),
@@ -237,9 +237,18 @@ describe("message codec", () => {
       foreign,
     );
 
-    expect(() => decodeMessage(bytes, codec)).toThrow(
-      MissingMembershipVersionError,
-    );
-    expect(missing).toEqual([]);
+    const decoded = decodeMessage(bytes, codec);
+
+    expect(decoded).toEqual({
+      type: "op",
+      op: createInsertOperation(
+        [unresolvedClientId(9, 0), 1],
+        "z",
+        ROOT_ID,
+        null,
+      ),
+    });
+    expect(pendingMembershipVersion((decoded as { op: Operation }).op)).toBe(9);
+    expect(missing).toEqual([9]);
   });
 });

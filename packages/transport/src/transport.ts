@@ -1,7 +1,6 @@
 import {
   decodeMessage,
   encodeMessage,
-  MissingMembershipVersionError,
   uuidOnlyCodec,
   type IdCodec,
 } from "./codec";
@@ -26,17 +25,7 @@ export const createTransport = (
     },
 
     onMessage(cb) {
-      return raw.onMessage((data) => {
-        try {
-          cb(decodeMessage(data, codec));
-        } catch (error) {
-          if (error instanceof MissingMembershipVersionError) {
-            codec.onMissingVersion?.(error.version);
-            return;
-          }
-          throw error;
-        }
-      });
+      return raw.onMessage((data) => cb(decodeMessage(data, codec)));
     },
 
     onOpen: raw.onOpen,
