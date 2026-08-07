@@ -55,7 +55,7 @@ describe("createTransport binary messages", () => {
       vector: new Map([[ALICE, 2]]),
     });
 
-    expect(sent[0]![0]).toBe(2);
+    expect(sent[0]![0]).toBe(3);
     expect(sent[0]![1]).toBe(MSG_SYNC_REQUEST);
 
     deliver(sent[0]!);

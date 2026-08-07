@@ -130,11 +130,80 @@ describe("message codec", () => {
   });
 
   test("round-trips membership messages in a binary frame", () => {
-    const message: Message = {
-      type: "JOIN_REQUEST",
-      clientId: BOB,
+    const membership = {
+      version: 2,
+      members: [
+        { clientId: ALICE, shortId: 0 },
+        { clientId: BOB, shortId: 1 },
+      ],
     };
-    expect(roundTrip(message)).toEqual(message);
+
+    const messages: Message[] = [
+      { type: "JOIN_REQUEST", clientId: BOB },
+      { type: "JOIN_RESPONSE", membership },
+      { type: "LEAVE", clientId: BOB },
+      {
+        type: "PREPARE",
+        ballot: { epoch: 3, proposer: ALICE },
+        version: 2,
+      },
+      {
+        type: "PROMISE",
+        ballot: { epoch: 3, proposer: ALICE },
+        version: 2,
+        senderId: BOB,
+        lastAcceptedBallot: null,
+        lastAcceptedMembership: null,
+      },
+      {
+        type: "PROMISE",
+        ballot: { epoch: 4, proposer: ALICE },
+        version: 2,
+        senderId: BOB,
+        lastAcceptedBallot: { epoch: 2, proposer: BOB },
+        lastAcceptedMembership: membership,
+      },
+      {
+        type: "ACCEPT",
+        ballot: { epoch: 3, proposer: ALICE },
+        version: 2,
+        membership,
+      },
+      {
+        type: "ACCEPTED",
+        ballot: { epoch: 3, proposer: ALICE },
+        version: 2,
+        peerId: BOB,
+      },
+      { type: "COMMIT", version: 2, membership },
+      {
+        type: "MEMBERSHIP_REQUEST",
+        version: 2,
+        requesterId: BOB,
+      },
+      {
+        type: "MEMBERSHIP_RESPONSE",
+        version: 2,
+        membership,
+      },
+      {
+        type: "HEARTBEAT",
+        clientId: ALICE,
+        membershipVersion: 2,
+        timestamp: 1_700_000_000_000,
+        presence: { cursor: 4, name: "alice", color: "#f00" },
+        sv: { [ALICE]: 3, [BOB]: 1 },
+      },
+    ];
+
+    for (const message of messages) {
+      const bytes = encodeMessage(message);
+      expect(bytes[1]).toBe(0x04); // MSG_MEMBERSHIP
+      expect(bytes.byteLength).toBeLessThan(
+        JSON.stringify(message).length + 8,
+      );
+      expect(decodeMessage(bytes)).toEqual(message);
+    }
   });
 
   test("embeds membership version and compresses ids", () => {

@@ -1,5 +1,4 @@
 import type { ClientId, Operation } from "@weavo/core";
-import { isMembershipMessage } from "@weavo/membership";
 import type { Message } from "../types";
 import {
   assertFullyRead,
@@ -17,6 +16,10 @@ import {
   uuidOnlyCodec,
 } from "./idCodec";
 import {
+  decodeMembershipMessage,
+  encodeMembershipMessage,
+} from "./membership";
+import {
   decodeOperation,
   encodeOperation,
   readOperation,
@@ -31,7 +34,6 @@ import {
   MSG_SYNC_RESPONSE,
   WIRE_VERSION,
 } from "./tags";
-import { readUtf8, writeUtf8 } from "./utf8";
 import { readVarint, writeVarint } from "./varint";
 
 const ensureMembershipVersion = (
@@ -72,7 +74,7 @@ export const encodeMessage = (
     }
   } else {
     writeU8(writer, MSG_MEMBERSHIP);
-    writeUtf8(writer, JSON.stringify(message));
+    encodeMembershipMessage(writer, message);
   }
 
   return toBytes(writer);
@@ -123,11 +125,7 @@ export const decodeMessage = (
     }
     message = { type: "sync-response", ops, clientIds };
   } else if (tag === MSG_MEMBERSHIP) {
-    const parsed: unknown = JSON.parse(readUtf8(reader));
-    if (!isMembershipMessage(parsed)) {
-      throw new Error("Invalid membership message");
-    }
-    message = parsed;
+    message = decodeMembershipMessage(reader);
   } else {
     throw new Error(`Unknown message tag: ${tag}`);
   }
