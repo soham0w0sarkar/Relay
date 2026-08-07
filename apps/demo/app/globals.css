@@ -70,6 +70,48 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+.editor-shell {
+  position: relative;
+  width: 100%;
+}
+
+.editor-textarea:read-only {
+  color: var(--muted);
+  cursor: wait;
+}
+
+.editor-joining {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(2px);
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+}
+
+.editor-joining-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--foreground);
+  border-radius: 50%;
+  animation: editor-spin 0.7s linear infinite;
+}
+
+@keyframes editor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .editor-textarea::placeholder {
   color: var(--muted);
 }

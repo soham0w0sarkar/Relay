@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createWeavo } from "@weavo/client";
 import {
   appendClientDelta,
@@ -25,6 +25,7 @@ export function WeavoTextarea({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const skipRestore = useRef(skipRestoreOnce);
+  const [joined, setJoined] = useState(false);
 
   useEffect(() => {
     if (skipRestoreOnce) skipRestore.current = true;
@@ -33,6 +34,8 @@ export function WeavoTextarea({
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+
+    setJoined(false);
 
     const roomId = roomIdFromUrl(weavoUrl);
     const clientId = getOrCreateClientId();
@@ -65,6 +68,9 @@ export function WeavoTextarea({
       opsSinceCheckpoint = 0;
     };
 
+    const unsubJoined = weavo.membership.onJoined(() => setJoined(true));
+    if (weavo.membership.isJoined()) setJoined(true);
+
     const unbind = weavo.bind(el);
 
     const onPageHide = () => checkpoint();
@@ -73,19 +79,29 @@ export function WeavoTextarea({
     return () => {
       checkpoint();
       window.removeEventListener("pagehide", onPageHide);
+      unsubJoined();
       unbind();
       weavo.disconnect();
     };
   }, [weavoUrl, skipRestoreOnce]);
 
   return (
-    <textarea
-      ref={textareaRef}
-      className="editor-textarea"
-      defaultValue=""
-      placeholder="Start typing…"
-      rows={10}
-      spellCheck={false}
-    />
+    <div className="editor-shell">
+      <textarea
+        ref={textareaRef}
+        className="editor-textarea"
+        defaultValue=""
+        placeholder={joined ? "Start typing…" : "Joining room…"}
+        rows={10}
+        spellCheck={false}
+        aria-busy={!joined}
+      />
+      {!joined ? (
+        <div className="editor-joining" role="status" aria-live="polite">
+          <span className="editor-joining-spinner" aria-hidden />
+          Joining room…
+        </div>
+      ) : null}
+    </div>
   );
 }
