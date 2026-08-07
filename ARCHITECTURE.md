@@ -29,7 +29,10 @@ Rough roadmap (more “what the last problem forced” than a product plan):
 
 @weavo/transport
     ├─ Message types (op / sync / membership wire union)
-    ├─ Versioned binary frames + shortId / UUID id codec
+    ├─ Versioned binary frames (`WIRE_VERSION = 3`)
+    ├─ shortId / UUID id codec (sync path)
+    ├─ Binary membership subtype codec (UUID ids)
+    ├─ Snapshot / delta persistence codec (UUID-stable)
     └─ WebSocket implementation
 
 @weavo/membership
@@ -42,6 +45,7 @@ Rough roadmap (more “what the last problem forced” than a product plan):
 @weavo/client
     ├─ Textarea adapter + selection transform
     ├─ Membership join before ops / sync-request
+    ├─ IdCodec wired from membership into transport
     └─ Orchestrates sync + transport + membership
 
 apps/weavo-server
@@ -137,13 +141,23 @@ Lots of missing ops → you answer sooner. Nothing useful → delay ≈ forever.
 
 There’s a load test under `packages/client/test/responseSuppression.load.test.ts` with hundreds of peers and one batched response. Same instinct shows up again in membership jitter: prefer math over a coordinator.
 
-Suppression fixed *who* answers. It didn’t shrink *what* they send. A late joiner still gets one `sync-response` packed with every missing op — and with UUID-form ids that payload is where the bloat stops being ambient keystroke tax and turns into a single heavy catch-up frame. More on the sizes below once short ids enter the picture.
+Suppression fixed *who* answers. It didn’t shrink *what* they send. A late joiner still gets one `sync-response` packed with every missing op — and without short ids that payload is where UUID bloat stops being ambient keystroke tax and turns into a single heavy catch-up frame.
 
 ---
 
 ## Transport boundary
 
-`@weavo/transport` uses versioned binary frames (`WIRE_VERSION = 3`). `createTransport` is the only serialize/deserialize point. Core and sync stay on typed objects because typing is Map lookups and pointer walks, constantly. Sync frames carry a membership version; client ids encode as `shortId` when the joined table knows them, otherwise full 16-byte UUIDs. Membership consensus frames are also binary, but keep full UUIDs — they establish the shortId table and cannot compress against it.
+`@weavo/transport` is the only serialize/deserialize point. Core and sync stay on typed objects — typing is Map lookups and pointer walks, constantly. Frames are versioned binary (`WIRE_VERSION = 3`).
+
+| Path | Encoding | Client ids |
+| ---- | -------- | ---------- |
+| `op` / `sync-request` / `sync-response` | Binary + membership version on the frame | `shortId` when the joined table knows them; else 16-byte UUID |
+| Membership (`JOIN_*`, `PREPARE`…`COMMIT`, …) | Binary subtype tags under `MSG_MEMBERSHIP` | Always full UUID — these frames *build* the shortId table |
+| Persistence (snapshot + delta) | Binary (`PERSIST_VERSION`), optional base64 for string stores | Always full UUID — shortIds are membership-version-local and must not hit disk |
+
+Missing a membership version on decode calls `requestMembership(version)` and drops the frame for now; buffering until `MEMBERSHIP_RESPONSE` is still open.
+
+Outbound membership messages are applied locally *before* broadcast so a joiner’s immediate `sync-request` can decode against the version the sender just committed.
 
 ---
 
@@ -180,7 +194,7 @@ Live ops dribble. A `sync-response` dumps history in one shot — every missing 
 | 3 000 | ~10 min at ~5 chars/s | ~464 KB | ~268 KB | ~196 KB |
 | 10 000 | long session / multi-peer backlog | ~1.5 MB | ~0.9 MB | ~0.65 MB |
 
-Same ~40% cut as the live path, but applied to a frame that has to parse, allocate, and apply in a burst. Unbloated catch-up feels like “document appears”; bloated catch-up feels like the tab hitching while you decode hundreds of kilobytes of repeated UUID strings you already could have named `2`. And because the response is still broadcast, every peer in the room receives that brick even if only the late joiner needed it — which is exactly why suppression mattered, and why shrinking the ops inside the winner’s response matters next.
+Same ~40% cut as the live path, but applied to a frame that has to parse, allocate, and apply in a burst. Unbloated catch-up feels like “document appears”; bloated catch-up feels like the tab hitching while you decode hundreds of kilobytes of repeated UUID strings you already could have named `2`. And because the response is still broadcast, every peer in the room receives that brick even if only the late joiner needed it — which is exactly why suppression mattered, and why shortId compression on the sync path mattered next.
 
 So the next move felt obvious: stop putting full UUIDs on the hot path. Give each peer in the room a small integer (`shortId`), encode against that, done.
 
@@ -241,7 +255,7 @@ For every new idea: **whose package?**
 | ----------------------------------- | ------------------- |
 | Concurrent insert order             | `@weavo/core`       |
 | “I have clocks you don't”           | `@weavo/sync`       |
-| Wire shape / serialization          | `@weavo/transport`  |
+| Wire + persistence serialization    | `@weavo/transport`  |
 | Member set / shortId table / commit | `@weavo/membership` |
 | Forward bytes                       | relay               |
 | DOM textarea + selection            | `@weavo/client`     |
@@ -253,6 +267,8 @@ For every new idea: **whose package?**
 - ~~Membership shortId table + lookups (`shortIdOf` / `clientIdOf`)~~
 - ~~Join gate in `@weavo/client` (`JOIN_REQUEST` → `JOIN_RESPONSE` / founding, ops+sync after `isJoined`)~~
 - ~~Flip the wire from UUID → shortId, and how membership version rides on each op~~
+- ~~Binary membership frames (UUID ids; no shortId on the consensus path)~~
+- ~~Binary snapshot / delta persistence codec (UUID-stable)~~
 - Late joiners who missed a `COMMIT` (buffer undecodable frames until `MEMBERSHIP_RESPONSE`)
 - Leave / remove on the same prepare → accept → commit spine
 - Heartbeats for presence / failure detection once the set is stable

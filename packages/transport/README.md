@@ -4,9 +4,9 @@
 
 # @weavo/transport
 
-WebSocket transport for Weavo. Encodes CRDT operations, state-vector sync, and membership consensus messages into versioned binary frames over a pluggable raw transport.
+WebSocket transport for Weavo. Encodes CRDT operations, state-vector sync, and membership consensus into versioned binary frames, and provides a UUID-stable binary codec for document snapshots and deltas.
 
-Installed automatically with [`@weavo/client`](https://www.npmjs.com/package/@weavo/client). Use this package directly for custom backends, in-memory test doubles, or server-side relay logic.
+Installed automatically with [`@weavo/client`](https://www.npmjs.com/package/@weavo/client). Use this package directly for custom backends, in-memory test doubles, relays, or persistence.
 
 ## Install
 
@@ -20,7 +20,16 @@ npm install @weavo/transport
 import { createWebSocketTransport, createTransport } from "@weavo/transport";
 
 const raw = createWebSocketTransport("ws://localhost:8080?room=doc-1");
-const transport = createTransport(raw);
+const transport = createTransport(raw, {
+  // optional — omit for UUID-only encoding
+  idCodec: {
+    encodeVersion: () => membership.getCurrent()?.version ?? 0,
+    shortIdOf: (id) => membership.shortIdOf(id),
+    clientIdOf: (version, shortId) => { /* lookup historical table */ },
+    hasVersion: (version) => membership.getVersion(version) !== null,
+    onMissingVersion: (version) => membership.requestMembership(version),
+  },
+});
 
 transport.connect();
 
@@ -35,32 +44,75 @@ transport.onMessage((message) => {
 transport.send({ type: "op", op });
 ```
 
-## Message types
+## Wire format (`WIRE_VERSION = 3`)
 
-| Type            | Payload              | Purpose                                                            |
-| --------------- | -------------------- | ------------------------------------------------------------------ |
-| `op`            | `Operation`          | Broadcast a local or remote CRDT operation                         |
-| `sync-request`  | `vector`, `clientId` | Ask peers for missing operations                                   |
-| `sync-response` | `ops`, `clientIds`   | Reply with operations the requester lacks                          |
-| membership      | `MembershipMessage`  | CASPaxos join/leave/presence (`PREPARE`, `COMMIT`, `HEARTBEAT`, …) |
+Every frame starts with `WIRE_VERSION`, then a message tag:
 
-`Message` is the flat union of sync messages and [`MembershipMessage`](https://github.com/soham0w0sarkar/Weavo/tree/main/packages/membership) from `@weavo/membership`. Use `isMembershipMessage` to demux on receive. Membership semantics stay in `@weavo/membership`; transport only carries the wire shapes.
+| Tag | Type | Body |
+| --- | ---- | ---- |
+| `MSG_OP` | `op` | membership version + length-prefixed operation |
+| `MSG_SYNC_REQUEST` | `sync-request` | membership version + state vector + client id |
+| `MSG_SYNC_RESPONSE` | `sync-response` | membership version + ops + requester client ids |
+| `MSG_MEMBERSHIP` | membership | subtype tag + fields (see below) |
 
-`createTransport` handles binary serialization at the transport boundary. Operations, clocks, state vectors, and message tags use compact binary encodings. Pass an `idCodec` (usually wired from `@weavo/membership`) so sync frames carry a membership version and known client ids compress to short integers; unmapped ids stay full 16-byte UUIDs. Membership consensus messages use a binary subtype codec with full 16-byte UUIDs (no shortId compression — those frames build the table).
+### Sync path ids
 
-For local persistence, `encodeDocumentSnapshot` / `decodeDocumentSnapshot` and `encodeDelta` / `decodeDelta` binary-encode checkpoints with stable UUIDs (shortIds are membership-version-local and must not be baked into storage). `bytesToBase64` / `base64ToBytes` help when the store is string-only (e.g. localStorage).
+With an `IdCodec`, known clients encode as `OP_ID_SHORT` (varint). Unknown clients and `ROOT` use `OP_ID_UUID` / `OP_ID_ROOT`. The frame’s membership version selects which table decode uses.
+
+Without an `IdCodec`, everything stays UUID (tests / pre-join).
+
+### Membership path (always UUID)
+
+Consensus and join messages cannot compress against the shortId table they are building. Under `MSG_MEMBERSHIP`, a subtype tag selects the layout:
+
+`JOIN_REQUEST`, `JOIN_RESPONSE`, `LEAVE`, `PREPARE`, `PROMISE`, `ACCEPT`, `ACCEPTED`, `COMMIT`, `MEMBERSHIP_REQUEST`, `MEMBERSHIP_RESPONSE`, `HEARTBEAT`
+
+`Membership` on the wire is `version` + UUID list; shortIds are rebuilt with `buildMembership`. Heartbeat timestamps use a uint53 split (ms since epoch exceeds uint32).
+
+`Message` is the flat union of sync messages and [`MembershipMessage`](https://github.com/soham0w0sarkar/Weavo/tree/main/packages/membership). Use `isMembershipMessage` to demux on receive. Semantics stay in `@weavo/membership`; transport only carries the bytes.
+
+## Persistence codec
+
+In-memory `DocumentSnapshot` / `Operation[]` stay typed objects. For disk:
+
+```ts
+import {
+  bytesToBase64,
+  base64ToBytes,
+  encodeDocumentSnapshot,
+  decodeDocumentSnapshot,
+  encodeDelta,
+  decodeDelta,
+} from "@weavo/transport";
+
+localStorage.setItem(
+  "doc:snapshot",
+  bytesToBase64(encodeDocumentSnapshot(weavo.snapshot())),
+);
+localStorage.setItem("doc:delta", bytesToBase64(encodeDelta([])));
+
+const snapshot = decodeDocumentSnapshot(
+  base64ToBytes(localStorage.getItem("doc:snapshot")!),
+);
+const delta = decodeDelta(base64ToBytes(localStorage.getItem("doc:delta")!));
+```
+
+Persistence always uses full UUIDs (`PERSIST_VERSION`). ShortIds are membership-version-local and must not be written to storage.
 
 ## API overview
 
-| Export                          | Description                                         |
-| ------------------------------- | --------------------------------------------------- |
-| `createWebSocketTransport(url)` | Browser WebSocket-backed `RawTransport`             |
-| `createTransport(raw, options?)`| Typed message layer over a raw transport            |
-| `encodeDocumentSnapshot` / `decodeDocumentSnapshot` | Binary document checkpoints (UUID-stable) |
-| `encodeDelta` / `decodeDelta` | Binary op delta logs                              |
-| `RawTransport`                  | Interface for custom transports (tests, Node, etc.) |
-| `Transport`                     | Typed send/receive with parsed `Message` objects    |
-| `IdCodec`                       | Optional shortId / UUID encode-decode lookups       |
+| Export | Description |
+| ------ | ----------- |
+| `createWebSocketTransport(url)` | Browser WebSocket-backed `RawTransport` |
+| `createTransport(raw, options?)` | Typed message layer; optional `idCodec` |
+| `IdCodec` / `uuidOnlyCodec` | shortId ↔ UUID lookups for sync frames |
+| `encodeMessage` / `decodeMessage` | Low-level frame codec |
+| `encodeDocumentSnapshot` / `decodeDocumentSnapshot` | Binary document checkpoints |
+| `encodeDelta` / `decodeDelta` | Binary op delta logs |
+| `bytesToBase64` / `base64ToBytes` | Helpers for string-only stores |
+| `RawTransport` / `Transport` | Pluggable byte pipe vs typed messages |
+| `WIRE_VERSION` / `PERSIST_VERSION` | Current format versions |
+| `MSG_*` / `MEM_*` / `OP_*` | Frame and subtype tags |
 
 ### Custom transport
 
@@ -68,15 +120,9 @@ For local persistence, `encodeDocumentSnapshot` / `decodeDocumentSnapshot` and `
 import { createTransport, type RawTransport } from "@weavo/transport";
 
 const raw: RawTransport = {
-  connect() {
-    /* ... */
-  },
-  disconnect() {
-    /* ... */
-  },
-  send(data: Uint8Array) {
-    /* ... */
-  },
+  connect() {},
+  disconnect() {},
+  send(data: Uint8Array) {},
   onMessage(cb) {
     return () => {};
   },
@@ -93,12 +139,12 @@ const transport = createTransport(raw);
 
 ## Related packages
 
-| Package             | Role                                         |
-| ------------------- | -------------------------------------------- |
-| `@weavo/core`       | CRDT operations carried in messages          |
-| `@weavo/sync`       | State vectors used in sync requests          |
-| `@weavo/membership` | Membership / consensus message types         |
-| `@weavo/client`     | Wires transport to a textarea out of the box |
+| Package | Role |
+| ------- | ---- |
+| `@weavo/core` | CRDT ops and `DocumentSnapshot` |
+| `@weavo/sync` | State vectors used in sync requests |
+| `@weavo/membership` | Membership / consensus types and table |
+| `@weavo/client` | Wires transport + membership to a textarea |
 
 ## Development
 
