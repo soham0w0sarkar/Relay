@@ -42,7 +42,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@weavo/core": "^1.2.1"
+    "@weavo/core": "^1.2.1",
+    "@weavo/membership": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

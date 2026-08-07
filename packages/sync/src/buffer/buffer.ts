@@ -7,7 +7,13 @@ import {
   type AppliedOp,
   apply,
 } from "@weavo/core";
-import type { OperationBuffer } from "./types";
+import type { MembershipVersions, OperationBuffer } from "./types";
+import {
+  membershipKey,
+  membershipKeyVersion,
+  pendingMembershipVersion,
+  resolveOperation,
+} from "./unresolved";
 
 export const createBuffer = (): OperationBuffer => ({
   waiting: new Map(),
@@ -28,11 +34,28 @@ const getMissingDeps = (doc: Document, op: Operation): OperationKey[] => {
   return missing;
 };
 
+const wait = (buffer: OperationBuffer, dep: OperationKey, op: Operation) => {
+  if (!buffer.waiting.has(dep)) buffer.waiting.set(dep, new Set());
+  buffer.waiting.get(dep)!.add(op);
+};
+
+const remember = (buffer: OperationBuffer, op: Operation) => {
+  if (op.type === "delete") buffer.pendingDeletes.set(toKey(op.target), op);
+  else buffer.buffered.set(toKey(op.id), op);
+};
+
 export const addToBuffer = (
   buffer: OperationBuffer,
   doc: Document,
   op: Operation,
 ) => {
+  const version = pendingMembershipVersion(op);
+  if (version !== null) {
+    remember(buffer, op);
+    wait(buffer, membershipKey(version), op);
+    return;
+  }
+
   if (op.type === "delete") {
     buffer.pendingDeletes.set(toKey(op.target), op);
     return;
@@ -40,11 +63,7 @@ export const addToBuffer = (
 
   buffer.buffered.set(toKey(op.id), op);
 
-  const missing = getMissingDeps(doc, op);
-  for (const dep of missing) {
-    if (!buffer.waiting.has(dep)) buffer.waiting.set(dep, new Set());
-    buffer.waiting.get(dep)!.add(op);
-  }
+  for (const dep of getMissingDeps(doc, op)) wait(buffer, dep, op);
 };
 
 export const flush = (
@@ -57,29 +76,78 @@ export const flush = (
     return [];
   }
 
-  const operations: AppliedOp[] = [];
-  const waitingQueue = [...(buffer.waiting.get(toKey(unblockedKey.id)) ?? [])];
+  return drain(buffer, doc, [
+    ...(buffer.waiting.get(toKey(unblockedKey.id)) ?? []),
+  ]);
+};
 
-  while (waitingQueue.length) {
-    const op = waitingQueue.shift()!;
-    if (!canApply(doc, op)) continue;
+export const flushMembership = (
+  buffer: OperationBuffer,
+  doc: Document,
+  membership: MembershipVersions,
+): AppliedOp[] => {
+  const unblocked: Operation[] = [];
+
+  for (const [key, ops] of [...buffer.waiting]) {
+    const version = membershipKeyVersion(key);
+    if (version === null || membership.getVersion(version) === null) continue;
+
+    buffer.waiting.delete(key);
+
+    for (const op of ops) {
+      forget(buffer, op);
+      const resolved = resolveOperation(op, membership);
+
+      if (pendingMembershipVersion(resolved) !== null) {
+        addToBuffer(buffer, doc, resolved);
+        continue;
+      }
+      unblocked.push(resolved);
+    }
+  }
+
+  return drain(buffer, doc, unblocked);
+};
+
+const drain = (
+  buffer: OperationBuffer,
+  doc: Document,
+  queue: Operation[],
+): AppliedOp[] => {
+  const operations: AppliedOp[] = [];
+
+  while (queue.length) {
+    const op = queue.shift()!;
+
+    if (!canApply(doc, op)) {
+      addToBuffer(buffer, doc, op);
+      continue;
+    }
 
     const index = apply(doc, op);
-    cleanUp(buffer, op);
+    forget(buffer, op);
     operations.push({ op, index });
 
-    const next = buffer.waiting.get(toKey(op.id)) ?? [];
-    waitingQueue.push(...next);
+    if (op.type === "insert") {
+      queue.push(...(buffer.waiting.get(toKey(op.id)) ?? []));
+    }
   }
 
   return operations;
 };
 
-const cleanUp = (buffer: OperationBuffer, op: InsertOperation) => {
-  buffer.buffered.delete(toKey(op.id));
+const forget = (buffer: OperationBuffer, op: Operation) => {
+  const deps: OperationKey[] = [];
+  const version = pendingMembershipVersion(op);
+  if (version !== null) deps.push(membershipKey(version));
 
-  const deps = [toKey(op.leftOrigin)];
-  if (op.rightOrigin) deps.push(toKey(op.rightOrigin));
+  if (op.type === "delete") {
+    buffer.pendingDeletes.delete(toKey(op.target));
+  } else {
+    buffer.buffered.delete(toKey(op.id));
+    deps.push(toKey(op.leftOrigin));
+    if (op.rightOrigin) deps.push(toKey(op.rightOrigin));
+  }
 
   for (const dep of deps) {
     const set = buffer.waiting.get(dep);
@@ -91,6 +159,8 @@ const cleanUp = (buffer: OperationBuffer, op: InsertOperation) => {
 };
 
 export const canApply = (doc: Document, op: Operation): boolean => {
+  if (pendingMembershipVersion(op) !== null) return false;
+
   if (op.type === "insert") return canApplyInsert(doc, op);
 
   return canApplyDelete(doc, op);
