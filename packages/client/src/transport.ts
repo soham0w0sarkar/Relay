@@ -14,12 +14,17 @@ import {
   addToBuffer,
   canApply,
   flush,
+  flushMembership,
   missingOps,
   update,
   type OperationBuffer,
   type StateVector,
 } from "@weavo/sync";
-import { isMembershipMessage, type Message, type Transport } from "@weavo/transport";
+import {
+  isMembershipMessage,
+  type Message,
+  type Transport,
+} from "@weavo/transport";
 import type { OnApplied, PeersReq, TimerRef } from "./types";
 
 const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
@@ -190,6 +195,11 @@ export const manageTransport = (
   transport.onMessage((message: Message) => {
     if (isMembershipMessage(message)) {
       membership.onMessage(message);
+
+      for (const { op, index } of flushMembership(buffer, doc, membership)) {
+        if (op.type === "insert") update(sv, op.id);
+        onApplied(op, index);
+      }
       return;
     }
 
