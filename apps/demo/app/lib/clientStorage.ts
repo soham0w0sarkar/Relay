@@ -1,4 +1,12 @@
 import type { DocumentSnapshot, Operation } from "@weavo/client";
+import {
+  base64ToBytes,
+  bytesToBase64,
+  decodeDelta,
+  decodeDocumentSnapshot,
+  encodeDelta,
+  encodeDocumentSnapshot,
+} from "@weavo/transport";
 
 type ClientId = string;
 
@@ -14,6 +22,22 @@ export type ClientStorage = {
 };
 
 const newClientId = (): ClientId => crypto.randomUUID();
+
+const decodeStoredSnapshot = (raw: string): DocumentSnapshot => {
+  try {
+    return decodeDocumentSnapshot(base64ToBytes(raw));
+  } catch {
+    return JSON.parse(raw) as DocumentSnapshot;
+  }
+};
+
+const decodeStoredDelta = (raw: string): Operation[] => {
+  try {
+    return decodeDelta(base64ToBytes(raw));
+  } catch {
+    return JSON.parse(raw) as Operation[];
+  }
+};
 
 /** One client id per browser tab (sessionStorage), not shared across tabs. */
 export function getOrCreateClientId(): ClientId {
@@ -39,10 +63,8 @@ export function loadClientStorage(
   if (!snapshotRaw && !deltaRaw) return null;
 
   return {
-    snapshot: snapshotRaw
-      ? (JSON.parse(snapshotRaw) as DocumentSnapshot)
-      : null,
-    delta: deltaRaw ? (JSON.parse(deltaRaw) as Operation[]) : [],
+    snapshot: snapshotRaw ? decodeStoredSnapshot(snapshotRaw) : null,
+    delta: deltaRaw ? decodeStoredDelta(deltaRaw) : [],
   };
 }
 
@@ -53,7 +75,10 @@ export function appendClientDelta(
 ) {
   const existing = loadClientStorage(roomId, clientId)?.delta ?? [];
   existing.push(op);
-  localStorage.setItem(deltaKey(roomId, clientId), JSON.stringify(existing));
+  localStorage.setItem(
+    deltaKey(roomId, clientId),
+    bytesToBase64(encodeDelta(existing)),
+  );
 }
 
 export function saveClientSnapshot(
@@ -61,8 +86,14 @@ export function saveClientSnapshot(
   clientId: ClientId,
   snapshot: DocumentSnapshot,
 ) {
-  localStorage.setItem(snapshotKey(roomId, clientId), JSON.stringify(snapshot));
-  localStorage.setItem(deltaKey(roomId, clientId), JSON.stringify([]));
+  localStorage.setItem(
+    snapshotKey(roomId, clientId),
+    bytesToBase64(encodeDocumentSnapshot(snapshot)),
+  );
+  localStorage.setItem(
+    deltaKey(roomId, clientId),
+    bytesToBase64(encodeDelta([])),
+  );
 }
 
 export function hasClientSnapshot(roomId: string, clientId: ClientId): boolean {

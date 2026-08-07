@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@weavo/client": "workspace:*",
+    "@weavo/transport": "workspace:*",
     "@repo/ui": "*",
     "next": "16.1.5",
     "react": "^19.2.0",
