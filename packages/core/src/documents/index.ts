@@ -9,4 +9,6 @@ export {
   restoreFromStorage,
   type DocumentSnapshot,
   type StateVectorSnapshot,
+  type SerializedStoreNode,
+  type SerializedSkipListNode,
 } from "./snapshot";

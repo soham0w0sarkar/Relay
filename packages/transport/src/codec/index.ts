@@ -5,6 +5,15 @@ export {
   encodeMembershipMessage,
 } from "./membership";
 export {
+  base64ToBytes,
+  bytesToBase64,
+  decodeDelta,
+  decodeDocumentSnapshot,
+  encodeDelta,
+  encodeDocumentSnapshot,
+  PERSIST_VERSION,
+} from "./persistence";
+export {
   MissingMembershipVersionError,
   uuidOnlyCodec,
   type IdCodec,
