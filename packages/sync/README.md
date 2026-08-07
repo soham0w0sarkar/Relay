@@ -38,24 +38,44 @@ const applied = flush(doc);
 - **State vectors** — per-client logical clocks for incremental sync
 - **`missingOps`** — compute which operation IDs a peer still needs
 - **Operation buffer** — hold inserts until left/right origins exist, then `flush`
+- **Membership waiting** — hold operations whose shortIds belong to a membership version this peer hasn't received yet
+
+## Membership versions
+
+A remote operation can arrive with client ids compressed against a membership version we don't have. `@weavo/transport` decodes those as unresolved ids rather than failing, so the operation is just another one with an unmet dependency: `canApply` returns `false`, `addToBuffer` parks it under that version, and `flushMembership` resolves and applies it once the table commits.
+
+```ts
+import { addToBuffer, canApply, flushMembership } from "@weavo/sync";
+
+if (!canApply(doc, remoteOp)) addToBuffer(buffer, doc, remoteOp);
+
+// after a membership message updates the store
+for (const { op, index } of flushMembership(buffer, doc, membership)) {
+  onApplied(op, index);
+}
+```
 
 ## API overview
 
-| Export                     | Description                                           |
-| -------------------------- | ----------------------------------------------------- |
-| `update(sv, operationId)`  | Advance a client's clock in a state vector            |
-| `missingOps(mine, theirs)` | List operation IDs they haven't received              |
-| `addToBuffer(doc, op)`     | Queue an out-of-order operation                       |
-| `flush(doc)`               | Apply all operations whose dependencies are satisfied |
-| `canApply(doc, op)`        | Check whether an operation can be applied now         |
+| Export                                  | Description                                                   |
+| --------------------------------------- | ------------------------------------------------------------- |
+| `update(sv, operationId)`               | Advance a client's clock in a state vector                    |
+| `missingOps(mine, theirs)`              | List operation IDs they haven't received                      |
+| `addToBuffer(buffer, doc, op)`          | Queue an operation waiting on origins or a membership version |
+| `flush(buffer, doc, op)`                | Apply operations unblocked by a newly applied operation       |
+| `flushMembership(buffer, doc, members)` | Resolve and apply operations parked on a membership version   |
+| `canApply(doc, op)`                     | Check whether an operation can be applied now                 |
+| `resolveOperation(op, membership)`      | Swap unresolved shortIds for real client ids                  |
+| `pendingMembershipVersion(op)`          | The membership version an operation still needs, if any       |
 
 ## Related packages
 
-| Package            | Role                                         |
-| ------------------ | -------------------------------------------- |
-| `@weavo/core`      | Document replicas and CRDT operations        |
-| `@weavo/transport` | Sends sync requests/responses over WebSocket |
-| `@weavo/client`    | End-to-end browser integration               |
+| Package             | Role                                         |
+| ------------------- | -------------------------------------------- |
+| `@weavo/core`       | Document replicas and CRDT operations        |
+| `@weavo/membership` | Membership tables used to resolve shortIds   |
+| `@weavo/transport`  | Sends sync requests/responses over WebSocket |
+| `@weavo/client`     | End-to-end browser integration               |
 
 ## Development
 

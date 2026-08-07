@@ -25,7 +25,9 @@ const transport = createTransport(raw, {
   idCodec: {
     encodeVersion: () => membership.getCurrent()?.version ?? 0,
     shortIdOf: (id) => membership.shortIdOf(id),
-    clientIdOf: (version, shortId) => { /* lookup historical table */ },
+    clientIdOf: (version, shortId) => {
+      /* lookup historical table */
+    },
     hasVersion: (version) => membership.getVersion(version) !== null,
     onMissingVersion: (version) => membership.requestMembership(version),
   },
@@ -48,18 +50,20 @@ transport.send({ type: "op", op });
 
 Every frame starts with `WIRE_VERSION`, then a message tag:
 
-| Tag | Type | Body |
-| --- | ---- | ---- |
-| `MSG_OP` | `op` | membership version + length-prefixed operation |
-| `MSG_SYNC_REQUEST` | `sync-request` | membership version + state vector + client id |
+| Tag                 | Type            | Body                                            |
+| ------------------- | --------------- | ----------------------------------------------- |
+| `MSG_OP`            | `op`            | membership version + length-prefixed operation  |
+| `MSG_SYNC_REQUEST`  | `sync-request`  | membership version + state vector + client id   |
 | `MSG_SYNC_RESPONSE` | `sync-response` | membership version + ops + requester client ids |
-| `MSG_MEMBERSHIP` | membership | subtype tag + fields (see below) |
+| `MSG_MEMBERSHIP`    | membership      | subtype tag + fields (see below)                |
 
 ### Sync path ids
 
 With an `IdCodec`, known clients encode as `OP_ID_SHORT` (varint). Unknown clients and `ROOT` use `OP_ID_UUID` / `OP_ID_ROOT`. The frame’s membership version selects which table decode uses.
 
 Without an `IdCodec`, everything stays UUID (tests / pre-join).
+
+A shortId that the table can't map does not fail the frame. Decode keeps it as an unresolved client id (`unresolvedClientId` from `@weavo/sync`) and calls `onMissingVersion`; `@weavo/sync` holds the operation in its buffer until that membership version arrives and then resolves it.
 
 ### Membership path (always UUID)
 
@@ -101,18 +105,18 @@ Persistence always uses full UUIDs (`PERSIST_VERSION`). ShortIds are membership-
 
 ## API overview
 
-| Export | Description |
-| ------ | ----------- |
-| `createWebSocketTransport(url)` | Browser WebSocket-backed `RawTransport` |
-| `createTransport(raw, options?)` | Typed message layer; optional `idCodec` |
-| `IdCodec` / `uuidOnlyCodec` | shortId ↔ UUID lookups for sync frames |
-| `encodeMessage` / `decodeMessage` | Low-level frame codec |
-| `encodeDocumentSnapshot` / `decodeDocumentSnapshot` | Binary document checkpoints |
-| `encodeDelta` / `decodeDelta` | Binary op delta logs |
-| `bytesToBase64` / `base64ToBytes` | Helpers for string-only stores |
-| `RawTransport` / `Transport` | Pluggable byte pipe vs typed messages |
-| `WIRE_VERSION` / `PERSIST_VERSION` | Current format versions |
-| `MSG_*` / `MEM_*` / `OP_*` | Frame and subtype tags |
+| Export                                              | Description                             |
+| --------------------------------------------------- | --------------------------------------- |
+| `createWebSocketTransport(url)`                     | Browser WebSocket-backed `RawTransport` |
+| `createTransport(raw, options?)`                    | Typed message layer; optional `idCodec` |
+| `IdCodec` / `uuidOnlyCodec`                         | shortId ↔ UUID lookups for sync frames  |
+| `encodeMessage` / `decodeMessage`                   | Low-level frame codec                   |
+| `encodeDocumentSnapshot` / `decodeDocumentSnapshot` | Binary document checkpoints             |
+| `encodeDelta` / `decodeDelta`                       | Binary op delta logs                    |
+| `bytesToBase64` / `base64ToBytes`                   | Helpers for string-only stores          |
+| `RawTransport` / `Transport`                        | Pluggable byte pipe vs typed messages   |
+| `WIRE_VERSION` / `PERSIST_VERSION`                  | Current format versions                 |
+| `MSG_*` / `MEM_*` / `OP_*`                          | Frame and subtype tags                  |
 
 ### Custom transport
 
@@ -139,12 +143,12 @@ const transport = createTransport(raw);
 
 ## Related packages
 
-| Package | Role |
-| ------- | ---- |
-| `@weavo/core` | CRDT ops and `DocumentSnapshot` |
-| `@weavo/sync` | State vectors used in sync requests |
-| `@weavo/membership` | Membership / consensus types and table |
-| `@weavo/client` | Wires transport + membership to a textarea |
+| Package             | Role                                       |
+| ------------------- | ------------------------------------------ |
+| `@weavo/core`       | CRDT ops and `DocumentSnapshot`            |
+| `@weavo/sync`       | State vectors used in sync requests        |
+| `@weavo/membership` | Membership / consensus types and table     |
+| `@weavo/client`     | Wires transport + membership to a textarea |
 
 ## Development
 

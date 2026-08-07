@@ -58,7 +58,7 @@ Rule we keep coming back to: each package owns one concern. If a change wants tw
 
 ## First decision that wouldn’t die: dumb relay
 
-We could have put brains in the server. Track ACKs, suppress storms, own the member list, store the doc. It would have been easier *once*.
+We could have put brains in the server. Track ACKs, suppress storms, own the member list, store the doc. It would have been easier _once_.
 
 Instead the relay only forwards opaque messages. No parsing ops, no document state, no membership. Correctness lives on the clients.
 
@@ -70,7 +70,7 @@ That sounds stubborn until you try porting the same protocol to WebRTC mesh or s
 
 Early on it felt like one CRDT list should be enough. Then we tried driving a textarea from it.
 
-The textarea thinks in character indices. The CRDT thinks in operation ids (`leftOrigin` / `rightOrigin`). Mapping one to the other by walking the list is **O(n)** per lookup, and typing *is* continuous lookups. That path melts.
+The textarea thinks in character indices. The CRDT thinks in operation ids (`leftOrigin` / `rightOrigin`). Mapping one to the other by walking the list is **O(n)** per lookup, and typing _is_ continuous lookups. That path melts.
 
 So a replica is two views of the same document:
 
@@ -96,7 +96,7 @@ Other quirks we had to get right:
 
 - height drawn geometrically (`P = 0.5`, max 32)
 - ordered by **document position**, not operation id — ids live in `refCrdtKey` so we can jump back
-- deletes tombstone the CRDT node but *remove* it from the skip list (visible length shrinks; history stays for concurrent inserts still pointing at that origin)
+- deletes tombstone the CRDT node but _remove_ it from the skip list (visible length shrinks; history stays for concurrent inserts still pointing at that origin)
 
 ---
 
@@ -124,7 +124,7 @@ Then ops started arriving before their origins. Dependency buffer: park them in 
 
 Live path today: broadcast `{ type: "op", op }` as a binary frame. On open, send `{ type: "sync-request", vector, clientId }`.
 
-That last part looked fine with two peers. With *N* peers joining at once, every peer with the missing ops answered, and we got an **O(N²)** response storm — same payload, many senders. The relay can’t suppress it (dumb on purpose). So we fixed it on the client:
+That last part looked fine with two peers. With _N_ peers joining at once, every peer with the missing ops answered, and we got an **O(N²)** response storm — same payload, many senders. The relay can’t suppress it (dumb on purpose). So we fixed it on the client:
 
 1. Queue incoming sync-request `clientId`s.
 2. First one arms a single timer; later ones only enqueue.
@@ -141,7 +141,7 @@ Lots of missing ops → you answer sooner. Nothing useful → delay ≈ forever.
 
 There’s a load test under `packages/client/test/responseSuppression.load.test.ts` with hundreds of peers and one batched response. Same instinct shows up again in membership jitter: prefer math over a coordinator.
 
-Suppression fixed *who* answers. It didn’t shrink *what* they send. A late joiner still gets one `sync-response` packed with every missing op — and without short ids that payload is where UUID bloat stops being ambient keystroke tax and turns into a single heavy catch-up frame.
+Suppression fixed _who_ answers. It didn’t shrink _what_ they send. A late joiner still gets one `sync-response` packed with every missing op — and without short ids that payload is where UUID bloat stops being ambient keystroke tax and turns into a single heavy catch-up frame.
 
 ---
 
@@ -149,15 +149,15 @@ Suppression fixed *who* answers. It didn’t shrink *what* they send. A late joi
 
 `@weavo/transport` is the only serialize/deserialize point. Core and sync stay on typed objects — typing is Map lookups and pointer walks, constantly. Frames are versioned binary (`WIRE_VERSION = 3`).
 
-| Path | Encoding | Client ids |
-| ---- | -------- | ---------- |
-| `op` / `sync-request` / `sync-response` | Binary + membership version on the frame | `shortId` when the joined table knows them; else 16-byte UUID |
-| Membership (`JOIN_*`, `PREPARE`…`COMMIT`, …) | Binary subtype tags under `MSG_MEMBERSHIP` | Always full UUID — these frames *build* the shortId table |
-| Persistence (snapshot + delta) | Binary (`PERSIST_VERSION`), optional base64 for string stores | Always full UUID — shortIds are membership-version-local and must not hit disk |
+| Path                                         | Encoding                                                      | Client ids                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `op` / `sync-request` / `sync-response`      | Binary + membership version on the frame                      | `shortId` when the joined table knows them; else 16-byte UUID                  |
+| Membership (`JOIN_*`, `PREPARE`…`COMMIT`, …) | Binary subtype tags under `MSG_MEMBERSHIP`                    | Always full UUID — these frames _build_ the shortId table                      |
+| Persistence (snapshot + delta)               | Binary (`PERSIST_VERSION`), optional base64 for string stores | Always full UUID — shortIds are membership-version-local and must not hit disk |
 
-Missing a membership version on decode calls `requestMembership(version)` and drops the frame for now; buffering until `MEMBERSHIP_RESPONSE` is still open.
+Decode never fails on a membership version we don't have. A shortId we can't map stays in the operation as `~<version>:<shortId>` and `requestMembership(version)` goes out. Resolution is the applier's job, not the codec's: `canApply` refuses any op still carrying one, `addToBuffer` parks it in `waiting` under that version, and when the table lands `flushMembership` swaps the shortIds for real client ids and applies whatever unblocks.
 
-Outbound membership messages are applied locally *before* broadcast so a joiner’s immediate `sync-request` can decode against the version the sender just committed.
+Outbound membership messages are applied locally _before_ broadcast so a joiner’s immediate `sync-request` can decode against the version the sender just committed.
 
 ---
 
@@ -165,34 +165,34 @@ Outbound membership messages are applied locally *before* broadcast so a joiner�
 
 Here’s where membership actually came from.
 
-An op id is `(clientId, clock)`. `clientId` is a UUID. Every insert on the wire carries that id *and* `leftOrigin` / `rightOrigin` — more `(clientId, clock)` pairs. Character-at-a-time editing means you’re shipping those UUIDs constantly, and under broadcast every peer pays for every frame.
+An op id is `(clientId, clock)`. `clientId` is a UUID. Every insert on the wire carries that id _and_ `leftOrigin` / `rightOrigin` — more `(clientId, clock)` pairs. Character-at-a-time editing means you’re shipping those UUIDs constantly, and under broadcast every peer pays for every frame.
 
 ### How bad is it, roughly
 
 Before binary framing, a typical single-character JSON insert frame landed around **~170 bytes**. Of that, **~70+ characters were just UUID text** — often ~40% of the frame — before counting quotes, commas, and field names. A concurrent insert with three distinct ids (`id`, `leftOrigin`, `rightOrigin`) pushed past **~210 bytes**, with **three** 36-char UUIDs (~50% of the payload). One `(uuid, clock)` pair alone serialized to ~43 JSON characters; the same pair with a small integer client id was ~6.
 
-That’s for *one keystroke from one peer*. Typing is continuous:
+That’s for _one keystroke from one peer_. Typing is continuous:
 
-| Pace | Chars / sec | UUID-form send (1 peer) | Same traffic, 5-peer room\* |
-| ---- | ----------- | ----------------------- | --------------------------- |
-| Casual | ~4 | ~40 KB / min | ~200 KB / min received across the room |
-| Fast typing | ~8 | ~80 KB / min | ~400 KB / min |
-| Burst | ~12 | ~125 KB / min | ~600 KB / min |
+| Pace        | Chars / sec | UUID-form send (1 peer) | Same traffic, 5-peer room\*            |
+| ----------- | ----------- | ----------------------- | -------------------------------------- |
+| Casual      | ~4          | ~40 KB / min            | ~200 KB / min received across the room |
+| Fast typing | ~8          | ~80 KB / min            | ~400 KB / min                          |
+| Burst       | ~12         | ~125 KB / min           | ~600 KB / min                          |
 
-\*Broadcast: each frame is copied to everyone. Five peers don’t send 5× if only one is typing — but every listener still *receives* the full fat op. Two people typing at once doubles the send side.
+\*Broadcast: each frame is copied to everyone. Five peers don’t send 5× if only one is typing — but every listener still _receives_ the full fat op. Two people typing at once doubles the send side.
 
 The binary codec removes JSON field-name overhead and, once a peer is joined, swaps known client UUIDs for 1–2 byte `shortId`s against the frame’s membership version. Unmapped clients (and pre-join traffic) still fall back to full UUIDs.
 
-### Sync-response is where you *feel* it
+### Sync-response is where you _feel_ it
 
 Live ops dribble. A `sync-response` dumps history in one shot — every missing insert still carrying those UUIDs. Historical JSON sizes for a catch-up packed with single-character inserts (3 requester ids on the envelope; the ops are the bulk):
 
-| Missing ops | What that is roughly | UUID-form response | shortId-form response | You don’t send |
-| ----------- | -------------------- | ------------------ | --------------------- | -------------- |
-| 200 | short paragraph of catch-up | ~31 KB | ~18 KB | ~13 KB |
-| 1 000 | ~3 min at casual pace | ~153 KB | ~88 KB | ~65 KB |
-| 3 000 | ~10 min at ~5 chars/s | ~464 KB | ~268 KB | ~196 KB |
-| 10 000 | long session / multi-peer backlog | ~1.5 MB | ~0.9 MB | ~0.65 MB |
+| Missing ops | What that is roughly              | UUID-form response | shortId-form response | You don’t send |
+| ----------- | --------------------------------- | ------------------ | --------------------- | -------------- |
+| 200         | short paragraph of catch-up       | ~31 KB             | ~18 KB                | ~13 KB         |
+| 1 000       | ~3 min at casual pace             | ~153 KB            | ~88 KB                | ~65 KB         |
+| 3 000       | ~10 min at ~5 chars/s             | ~464 KB            | ~268 KB               | ~196 KB        |
+| 10 000      | long session / multi-peer backlog | ~1.5 MB            | ~0.9 MB               | ~0.65 MB       |
 
 Same ~40% cut as the live path, but applied to a frame that has to parse, allocate, and apply in a burst. Unbloated catch-up feels like “document appears”; bloated catch-up feels like the tab hitching while you decode hundreds of kilobytes of repeated UUID strings you already could have named `2`. And because the response is still broadcast, every peer in the room receives that brick even if only the late joiner needed it — which is exactly why suppression mattered, and why shortId compression on the sync path mattered next.
 
@@ -206,7 +206,7 @@ Except the table has to be **identical** on every peer. If A thinks `shortId = 3
 4. Bump a membership `version` on every join/leave.
 5. Encode ops against a specific version so decode knows which table to use.
 
-On one machine that’s a sorted array. On a broadcast mesh with no membership server, peers disagree about who joined, who left, and in what order — and any disagreement on the set is disagreement on short ids. That’s the wall. `@weavo/membership` is the attempt to climb it: consensus on the next membership snapshot *before* anyone compresses against it.
+On one machine that’s a sorted array. On a broadcast mesh with no membership server, peers disagree about who joined, who left, and in what order — and any disagreement on the set is disagreement on short ids. That’s the wall. `@weavo/membership` is the attempt to climb it: consensus on the next membership snapshot _before_ anyone compresses against it.
 
 Presence, failure detection, GC frontiers — they all want “who’s in the room” too. Those showed up after. The thing that forced the package was UUID weight on every op.
 
@@ -216,7 +216,7 @@ Presence, failure detection, GC frontiers — they all want “who’s in the ro
 
 A membership is an immutable snapshot: sorted UUIDs → deterministic `shortId`s (`0 .. n-1`), plus a monotonic `version`. Older versions stick around in a store so in-flight ops encoded against them can still decode while the room moves forward.
 
-Joins/leaves don’t patch the live set. They propose the *next* snapshot and commit it. Until commit, keep encoding with the previous version — full UUIDs still work, they’re just fat.
+Joins/leaves don’t patch the live set. They propose the _next_ snapshot and commit it. Until commit, keep encoding with the previous version — full UUIDs still work, they’re just fat.
 
 ---
 
@@ -269,7 +269,7 @@ For every new idea: **whose package?**
 - ~~Flip the wire from UUID → shortId, and how membership version rides on each op~~
 - ~~Binary membership frames (UUID ids; no shortId on the consensus path)~~
 - ~~Binary snapshot / delta persistence codec (UUID-stable)~~
-- Late joiners who missed a `COMMIT` (buffer undecodable frames until `MEMBERSHIP_RESPONSE`)
+- ~~Late joiners who missed a `COMMIT` (ops wait in the buffer until their membership version arrives)~~
 - Leave / remove on the same prepare → accept → commit spine
 - Heartbeats for presence / failure detection once the set is stable
 - Tombstone GC once we can compute a frontier over live members
