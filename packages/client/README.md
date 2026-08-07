@@ -165,24 +165,31 @@ import {
   type DocumentSnapshot,
   type Operation,
 } from "@weavo/client";
+import {
+  base64ToBytes,
+  bytesToBase64,
+  decodeDelta,
+  decodeDocumentSnapshot,
+  encodeDelta,
+  encodeDocumentSnapshot,
+} from "@weavo/transport";
 
 // --- restore on load ---
-const snapshot = JSON.parse(
-  localStorage.getItem("doc:snapshot")!,
-) as DocumentSnapshot;
-const delta = JSON.parse(
-  localStorage.getItem("doc:delta") ?? "[]",
-) as Operation[];
+const snapshot = decodeDocumentSnapshot(
+  base64ToBytes(localStorage.getItem("doc:snapshot")!),
+);
+const delta = decodeDelta(
+  base64ToBytes(localStorage.getItem("doc:delta") ?? bytesToBase64(encodeDelta([]))),
+);
 
 const weavo = createWeavo("ws://localhost:8080?room=notes", {
   initial: { snapshot, delta },
   onOp(op) {
-    // append every local + remote op to the delta log
-    const ops = JSON.parse(
-      localStorage.getItem("doc:delta") ?? "[]",
-    ) as Operation[];
+    const ops = decodeDelta(
+      base64ToBytes(localStorage.getItem("doc:delta")!),
+    );
     ops.push(op);
-    localStorage.setItem("doc:delta", JSON.stringify(ops));
+    localStorage.setItem("doc:delta", bytesToBase64(encodeDelta(ops)));
   },
 });
 
@@ -190,14 +197,17 @@ weavo.bind(textarea);
 
 // --- checkpoint periodically or on unload ---
 function checkpoint() {
-  localStorage.setItem("doc:snapshot", JSON.stringify(weavo.snapshot()));
-  localStorage.setItem("doc:delta", "[]");
+  localStorage.setItem(
+    "doc:snapshot",
+    bytesToBase64(encodeDocumentSnapshot(weavo.snapshot())),
+  );
+  localStorage.setItem("doc:delta", bytesToBase64(encodeDelta([])));
 }
 
 window.addEventListener("pagehide", checkpoint);
 ```
 
-`DocumentSnapshot` is plain JSON — store it in localStorage, IndexedDB, Postgres, S3, or anywhere else. After restore, live sync continues over WebSocket as usual.
+`DocumentSnapshot` stays a typed in-memory object; `@weavo/transport` binary-encodes it for storage (UUID-stable — do not persist shortIds). JSON still works if you prefer. After restore, live sync continues over WebSocket as usual.
 
 **Tips**
 

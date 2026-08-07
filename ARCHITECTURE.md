@@ -143,7 +143,7 @@ Suppression fixed *who* answers. It didn’t shrink *what* they send. A late joi
 
 ## Transport boundary
 
-`@weavo/transport` uses versioned binary frames (`WIRE_VERSION = 2`). `createTransport` is the only serialize/deserialize point. Core and sync stay on typed objects because typing is Map lookups and pointer walks, constantly. Sync frames carry a membership version; client ids encode as `shortId` when the joined table knows them, otherwise full 16-byte UUIDs.
+`@weavo/transport` uses versioned binary frames (`WIRE_VERSION = 3`). `createTransport` is the only serialize/deserialize point. Core and sync stay on typed objects because typing is Map lookups and pointer walks, constantly. Sync frames carry a membership version; client ids encode as `shortId` when the joined table knows them, otherwise full 16-byte UUIDs. Membership consensus frames are also binary, but keep full UUIDs — they establish the shortId table and cannot compress against it.
 
 ---
 

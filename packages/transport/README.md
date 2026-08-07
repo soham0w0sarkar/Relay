@@ -46,7 +46,9 @@ transport.send({ type: "op", op });
 
 `Message` is the flat union of sync messages and [`MembershipMessage`](https://github.com/soham0w0sarkar/Weavo/tree/main/packages/membership) from `@weavo/membership`. Use `isMembershipMessage` to demux on receive. Membership semantics stay in `@weavo/membership`; transport only carries the wire shapes.
 
-`createTransport` handles binary serialization at the transport boundary. Operations, clocks, state vectors, and message tags use compact binary encodings. Pass an `idCodec` (usually wired from `@weavo/membership`) so sync frames carry a membership version and known client ids compress to short integers; unmapped ids stay full 16-byte UUIDs. Membership payloads are JSON encoded inside a versioned binary membership frame.
+`createTransport` handles binary serialization at the transport boundary. Operations, clocks, state vectors, and message tags use compact binary encodings. Pass an `idCodec` (usually wired from `@weavo/membership`) so sync frames carry a membership version and known client ids compress to short integers; unmapped ids stay full 16-byte UUIDs. Membership consensus messages use a binary subtype codec with full 16-byte UUIDs (no shortId compression — those frames build the table).
+
+For local persistence, `encodeDocumentSnapshot` / `decodeDocumentSnapshot` and `encodeDelta` / `decodeDelta` binary-encode checkpoints with stable UUIDs (shortIds are membership-version-local and must not be baked into storage). `bytesToBase64` / `base64ToBytes` help when the store is string-only (e.g. localStorage).
 
 ## API overview
 
@@ -54,6 +56,8 @@ transport.send({ type: "op", op });
 | ------------------------------- | --------------------------------------------------- |
 | `createWebSocketTransport(url)` | Browser WebSocket-backed `RawTransport`             |
 | `createTransport(raw, options?)`| Typed message layer over a raw transport            |
+| `encodeDocumentSnapshot` / `decodeDocumentSnapshot` | Binary document checkpoints (UUID-stable) |
+| `encodeDelta` / `decodeDelta` | Binary op delta logs                              |
 | `RawTransport`                  | Interface for custom transports (tests, Node, etc.) |
 | `Transport`                     | Typed send/receive with parsed `Message` objects    |
 | `IdCodec`                       | Optional shortId / UUID encode-decode lookups       |
