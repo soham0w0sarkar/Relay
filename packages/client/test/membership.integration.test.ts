@@ -17,14 +17,15 @@ describe("membership join gate", () => {
     weavo.bind(el);
 
     expect(weavo.membership.isJoined()).toBe(false);
+    expect(el.readOnly).toBe(true);
 
     await waitUntilJoined(weavo);
     expect(weavo.membership.isJoined()).toBe(true);
+    expect(el.readOnly).toBe(false);
     expect(weavo.membership.shortIdOf(weavo.membership.clientId)).toBe(0);
 
     insertText(el, "hello");
     expect(el.value).toBe("hello");
-
     weavo.disconnect();
     el.remove();
   });
@@ -44,8 +45,10 @@ describe("membership join gate", () => {
     joiner.bind(joinerEl);
 
     expect(joiner.membership.isJoined()).toBe(false);
+    expect(joinerEl.readOnly).toBe(true);
     await waitUntilJoined(joiner);
     expect(joiner.membership.isJoined()).toBe(true);
+    expect(joinerEl.readOnly).toBe(false);
     expect(joiner.membership.getCurrent()?.members).toHaveLength(2);
 
     await flushMicrotasks();

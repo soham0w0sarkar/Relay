@@ -145,6 +145,18 @@ export const createWeavo = (
       before = captureSnapshot(el);
     }
 
+    let unsubJoined: (() => void) | undefined;
+    if (!membership.isJoined()) {
+      el.readOnly = true;
+      unsubJoined = membership.onJoined(() => {
+        el.readOnly = false;
+        unsubJoined?.();
+        unsubJoined = undefined;
+      });
+    } else {
+      el.readOnly = false;
+    }
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Backspace" || event.key === "Delete") {
         before = captureSnapshot(el);
@@ -153,6 +165,10 @@ export const createWeavo = (
     };
 
     const onBeforeInput = (event: Event) => {
+      if (!membership.isJoined()) {
+        event.preventDefault();
+        return;
+      }
       before = captureSnapshot(event.target as HTMLTextAreaElement);
       pendingInput = true;
     };
@@ -184,6 +200,7 @@ export const createWeavo = (
     el.addEventListener("keyup", refreshSnapshot);
 
     return () => {
+      unsubJoined?.();
       el.removeEventListener("keydown", onKeyDown, true);
       el.removeEventListener("beforeinput", onBeforeInput);
       el.removeEventListener("input", onInput);
