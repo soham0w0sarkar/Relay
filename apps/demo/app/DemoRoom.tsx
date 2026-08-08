@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { WeavoTextarea } from "./WeavoTextarea";
+import { IdentityPicker } from "./IdentityPicker";
 import { buildWeavoRoomUrl } from "./lib/weavoUrl";
 import { checkWeavoServerReady, isRemoteWeavoServer } from "./lib/weavoReady";
 import {
@@ -11,7 +12,14 @@ import {
   shortRoomId,
   storeRoomId,
 } from "./lib/roomId";
-import { clearClientStorage, getOrCreateClientId } from "./lib/clientStorage";
+import {
+  clearClientStorage,
+  getOrCreateClientId,
+  getOrCreateDisplayColor,
+  getOrCreateDisplayName,
+  setDisplayColor,
+  setDisplayName,
+} from "./lib/clientStorage";
 import styles from "./page.module.css";
 
 type ServerStatus = "checking" | "ready" | "unavailable";
@@ -24,6 +32,8 @@ export function DemoRoom() {
   const [joinError, setJoinError] = useState(false);
   const [copied, setCopied] = useState(false);
   const [skipRestoreOnce, setSkipRestoreOnce] = useState(false);
+  const [displayName, setDisplayNameState] = useState("");
+  const [displayColor, setDisplayColorState] = useState("");
 
   const pingServer = useCallback(async () => {
     setServerStatus("checking");
@@ -37,6 +47,8 @@ export function DemoRoom() {
 
   useEffect(() => {
     setRoomId(loadStoredRoomId());
+    setDisplayNameState(getOrCreateDisplayName());
+    setDisplayColorState(getOrCreateDisplayColor());
     setHydrated(true);
   }, []);
 
@@ -45,16 +57,34 @@ export function DemoRoom() {
     pingServer();
   }, [hydrated, pingServer]);
 
-  const enterRoom = useCallback((id: string, fresh: boolean) => {
-    if (fresh) {
-      clearClientStorage(id, getOrCreateClientId());
-      setSkipRestoreOnce(true);
-    }
-    storeRoomId(id);
-    setRoomId(id);
-    setJoinInput("");
-    setJoinError(false);
+  const updateName = useCallback((value: string) => {
+    setDisplayNameState(value);
   }, []);
+
+  const commitName = useCallback(() => {
+    setDisplayNameState((current) => setDisplayName(current));
+  }, []);
+
+  const updateColor = useCallback((value: string) => {
+    setDisplayColorState(setDisplayColor(value));
+  }, []);
+
+  const enterRoom = useCallback(
+    (id: string, fresh: boolean) => {
+      const name = setDisplayName(displayName);
+      setDisplayNameState(name);
+      setDisplayColor(displayColor);
+      if (fresh) {
+        clearClientStorage(id, getOrCreateClientId());
+        setSkipRestoreOnce(true);
+      }
+      storeRoomId(id);
+      setRoomId(id);
+      setJoinInput("");
+      setJoinError(false);
+    },
+    [displayName, displayColor],
+  );
 
   const createRoom = useCallback(() => {
     enterRoom(createRoomId(), true);
@@ -113,10 +143,19 @@ export function DemoRoom() {
   if (!roomId) {
     return (
       <div className={styles.lobby}>
+        <IdentityPicker
+          name={displayName}
+          color={displayColor}
+          onNameChange={updateName}
+          onNameCommit={commitName}
+          onColorChange={updateColor}
+        />
+
         <button
           type="button"
           className={styles.createButton}
           onClick={createRoom}
+          onMouseDown={commitName}
         >
           New room
         </button>
@@ -145,7 +184,10 @@ export function DemoRoom() {
               setJoinError(false);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") joinRoom();
+              if (e.key === "Enter") {
+                commitName();
+                joinRoom();
+              }
             }}
             aria-invalid={joinError}
           />
@@ -153,6 +195,7 @@ export function DemoRoom() {
             type="button"
             className={styles.joinButton}
             onClick={joinRoom}
+            onMouseDown={commitName}
           >
             Join
           </button>
@@ -225,6 +268,8 @@ export function DemoRoom() {
       <WeavoTextarea
         weavoUrl={buildWeavoRoomUrl(roomId)}
         skipRestoreOnce={skipRestoreOnce}
+        displayName={displayName.trim() || getOrCreateDisplayName()}
+        displayColor={displayColor}
       />
     </div>
   );

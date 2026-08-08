@@ -18,6 +18,7 @@ const nextConfig = {
   transpilePackages: [
     "@weavo/client",
     "@weavo/core",
+    "@weavo/membership",
     "@weavo/sync",
     "@weavo/transport",
   ],

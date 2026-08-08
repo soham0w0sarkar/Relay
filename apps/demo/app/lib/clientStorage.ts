@@ -12,6 +12,7 @@ type ClientId = string;
 
 const CLIENT_ID_KEY = "weavo:demo:client-id";
 const DISPLAY_NAME_KEY = "weavo:demo:display-name";
+const DISPLAY_COLOR_KEY = "weavo:demo:display-color";
 const snapshotKey = (roomId: string, clientId: ClientId) =>
   `weavo:demo:${roomId}:snapshot:${clientId}`;
 const deltaKey = (roomId: string, clientId: ClientId) =>
@@ -21,6 +22,17 @@ export type ClientStorage = {
   snapshot: DocumentSnapshot | null;
   delta: Operation[];
 };
+
+export const DISPLAY_COLORS = [
+  "#0f766e",
+  "#c2410c",
+  "#1d4ed8",
+  "#a16207",
+  "#b91c1c",
+  "#15803d",
+  "#0e7490",
+  "#44403c",
+] as const;
 
 const newClientId = (): ClientId => crypto.randomUUID();
 
@@ -67,21 +79,56 @@ const NAME_POOL = [
   "Fern",
 ];
 
+const generateDisplayName = () => {
+  const word = NAME_POOL[Math.floor(Math.random() * NAME_POOL.length)];
+  return `${word}-${Math.floor(Math.random() * 90 + 10)}`;
+};
+
+const generateDisplayColor = () =>
+  DISPLAY_COLORS[Math.floor(Math.random() * DISPLAY_COLORS.length)]!;
+
 /** One display name per browser tab, matching the client id lifetime. */
 export function getOrCreateDisplayName(): string {
-  const generate = () => {
-    const word = NAME_POOL[Math.floor(Math.random() * NAME_POOL.length)];
-    return `${word}-${Math.floor(Math.random() * 90 + 10)}`;
-  };
-
-  if (typeof sessionStorage === "undefined") return generate();
+  if (typeof sessionStorage === "undefined") return generateDisplayName();
 
   const existing = sessionStorage.getItem(DISPLAY_NAME_KEY);
   if (existing) return existing;
 
-  const name = generate();
+  const name = generateDisplayName();
   sessionStorage.setItem(DISPLAY_NAME_KEY, name);
   return name;
+}
+
+export function setDisplayName(name: string): string {
+  const trimmed = name.trim().slice(0, 24) || "Guest";
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.setItem(DISPLAY_NAME_KEY, trimmed);
+  }
+  return trimmed;
+}
+
+/** One accent color per browser tab for cursors and presence chips. */
+export function getOrCreateDisplayColor(): string {
+  if (typeof sessionStorage === "undefined") return generateDisplayColor();
+
+  const existing = sessionStorage.getItem(DISPLAY_COLOR_KEY);
+  if (existing && (DISPLAY_COLORS as readonly string[]).includes(existing)) {
+    return existing;
+  }
+
+  const color = generateDisplayColor();
+  sessionStorage.setItem(DISPLAY_COLOR_KEY, color);
+  return color;
+}
+
+export function setDisplayColor(color: string): string {
+  const next = (DISPLAY_COLORS as readonly string[]).includes(color)
+    ? color
+    : generateDisplayColor();
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.setItem(DISPLAY_COLOR_KEY, next);
+  }
+  return next;
 }
 
 export function loadClientStorage(

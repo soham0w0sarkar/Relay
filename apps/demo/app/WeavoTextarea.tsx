@@ -6,7 +6,6 @@ import { RemoteCursors } from "./RemoteCursors";
 import {
   appendClientDelta,
   getOrCreateClientId,
-  getOrCreateDisplayName,
   hasClientSnapshot,
   loadClientStorage,
   saveClientSnapshot,
@@ -14,6 +13,9 @@ import {
 
 const CHECKPOINT_EVERY_OPS = 50;
 const HEARTBEAT_MS = 750;
+/** Demo-friendly: cursor drops fast; membership remove still waits for hiccups. */
+const PRESENCE_TIMEOUT_MS = 4_000;
+const REMOVAL_TIMEOUT_MS = 12_000;
 
 const roomIdFromUrl = (weavoUrl: string) =>
   new URL(weavoUrl).searchParams.get("room") ?? "";
@@ -21,13 +23,18 @@ const roomIdFromUrl = (weavoUrl: string) =>
 export function WeavoTextarea({
   weavoUrl,
   skipRestoreOnce = false,
+  displayName,
+  displayColor,
 }: {
   weavoUrl: string;
   /** Skip restoring local storage once (after joining a new room). */
   skipRestoreOnce?: boolean;
+  displayName: string;
+  displayColor: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const skipRestore = useRef(skipRestoreOnce);
+  const weavoRef = useRef<ReturnType<typeof createWeavo> | null>(null);
   const [joined, setJoined] = useState(false);
   const [peers, setPeers] = useState<PeerPresence[]>([]);
   const [selfId, setSelfId] = useState("");
@@ -36,6 +43,13 @@ export function WeavoTextarea({
   useEffect(() => {
     if (skipRestoreOnce) skipRestore.current = true;
   }, [skipRestoreOnce]);
+
+  useEffect(() => {
+    weavoRef.current?.setIdentity({
+      name: displayName,
+      color: displayColor,
+    });
+  }, [displayName, displayColor]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -52,11 +66,15 @@ export function WeavoTextarea({
     skipRestore.current = false;
     const stored = doRestore ? loadClientStorage(roomId, clientId) : null;
     let opsSinceCheckpoint = 0;
+    let closed = false;
 
     const weavo = createWeavo(weavoUrl, {
       clientId,
-      name: getOrCreateDisplayName(),
+      name: displayName,
+      color: displayColor,
       heartbeatIntervalMs: HEARTBEAT_MS,
+      presenceTimeoutMs: PRESENCE_TIMEOUT_MS,
+      removalTimeoutMs: REMOVAL_TIMEOUT_MS,
       initial: stored?.snapshot
         ? { snapshot: stored.snapshot, delta: stored.delta }
         : undefined,
@@ -72,11 +90,21 @@ export function WeavoTextarea({
         }
       },
     });
+    weavoRef.current = weavo;
 
     const checkpoint = () => {
-      if (!roomId) return;
+      if (!roomId || closed) return;
       saveClientSnapshot(roomId, clientId, weavo.snapshot());
       opsSinceCheckpoint = 0;
+    };
+
+    /** Graceful leave: LEAVE on the wire, then close the socket. */
+    const teardown = () => {
+      if (closed) return;
+      checkpoint();
+      closed = true;
+      weavoRef.current = null;
+      weavo.disconnect();
     };
 
     const unsubJoined = weavo.membership.onJoined(() => setJoined(true));
@@ -93,19 +121,21 @@ export function WeavoTextarea({
     el.addEventListener("input", syncText);
     syncText();
 
-    const onPageHide = () => checkpoint();
-    window.addEventListener("pagehide", onPageHide);
+    // Tab close / mobile background kill — React cleanup often does not run.
+    window.addEventListener("pagehide", teardown);
 
     return () => {
-      checkpoint();
-      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pagehide", teardown);
       el.removeEventListener("input", syncText);
       unsubJoined();
       unsubPresence();
       unsubText();
       unbind();
-      weavo.disconnect();
+      // Leave button / room switch: unmount sends LEAVE to peers.
+      teardown();
     };
+    // Identity updates go through setIdentity — do not reconnect on rename.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room URL / restore only
   }, [weavoUrl, skipRestoreOnce]);
 
   return (
