@@ -170,6 +170,7 @@ export const createPeer = async (
   const weavo = createWeavo(room.join(), {
     clientId,
     initialMembers: options.members ?? [clientId],
+    heartbeatIntervalMs: 0,
   });
   const el = createTextarea();
   const unbind = weavo.bind(el);

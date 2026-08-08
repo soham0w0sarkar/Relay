@@ -12,7 +12,10 @@ import { MemoryRoom } from "./helpers/memoryTransport";
 describe("membership join gate", () => {
   test("solo peer founds the room before sending ops", async () => {
     const room = new MemoryRoom();
-    const weavo = createWeavo(room.join(), { foundingGraceMs: 0 });
+    const weavo = createWeavo(room.join(), {
+      foundingGraceMs: 0,
+      heartbeatIntervalMs: 0,
+    });
     const el = createTextarea();
     weavo.bind(el);
 
@@ -32,7 +35,10 @@ describe("membership join gate", () => {
 
   test("second peer waits for JOIN_RESPONSE before syncing ops", async () => {
     const room = new MemoryRoom();
-    const founder = createWeavo(room.join(), { foundingGraceMs: 0 });
+    const founder = createWeavo(room.join(), {
+      foundingGraceMs: 0,
+      heartbeatIntervalMs: 0,
+    });
     const founderEl = createTextarea();
     founder.bind(founderEl);
     await waitUntilJoined(founder);
@@ -40,7 +46,10 @@ describe("membership join gate", () => {
     insertText(founderEl, "hi");
     await flushMicrotasks();
 
-    const joiner = createWeavo(room.join(), { foundingGraceMs: 5_000 });
+    const joiner = createWeavo(room.join(), {
+      foundingGraceMs: 5_000,
+      heartbeatIntervalMs: 0,
+    });
     const joinerEl = createTextarea();
     joiner.bind(joinerEl);
 

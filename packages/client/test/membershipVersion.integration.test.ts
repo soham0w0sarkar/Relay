@@ -78,6 +78,7 @@ describe("ops encoded against an unknown membership version", () => {
       initialMembers: [ALICE],
       initialVersion: 1,
       foundingGraceMs: 0,
+      heartbeatIntervalMs: 0,
     });
     const el = createTextarea();
     weavo.bind(el);

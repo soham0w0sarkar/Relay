@@ -9,7 +9,11 @@ import {
   type DocumentSnapshot,
   type Operation,
 } from "@weavo/core";
-import { createMembership, getClientId, type MembershipHandle } from "@weavo/membership";
+import {
+  createMembership,
+  getClientId,
+  type MembershipHandle,
+} from "@weavo/membership";
 import { createBuffer, update, type StateVector } from "@weavo/sync";
 import {
   createTransport,
@@ -33,10 +37,23 @@ export type WeavoOptions = {
   foundingGraceMs?: number;
   initialMembers?: ClientId[];
   initialVersion?: number;
+  name?: string;
+  color?: string;
+  heartbeatIntervalMs?: number;
+  presenceTimeoutMs?: number;
   initial?: {
     snapshot: DocumentSnapshot;
     delta?: Operation[];
   };
+};
+
+const colorFromId = (clientId: ClientId): string => {
+  let hash = 0;
+  for (let index = 0; index < clientId.length; index++) {
+    hash = (hash * 31 + clientId.charCodeAt(index)) >>> 0;
+  }
+  const hue = hash % 360;
+  return `hsl(${hue} 70% 45%)`;
 };
 
 const captureSnapshot = (el: HTMLTextAreaElement): InputSnapshot => ({
@@ -62,6 +79,11 @@ export const createWeavo = (
       ? createWebSocketTransport(urlOrTransport)
       : urlOrTransport;
 
+  const displayName = options.name ?? clientId.slice(0, 8);
+  const displayColor = options.color ?? colorFromId(clientId);
+
+  let boundEl: HTMLTextAreaElement | null = null;
+
   let membership!: MembershipHandle;
   const transport = createTransport(rawTransport, {
     idCodec: {
@@ -77,6 +99,12 @@ export const createWeavo = (
   });
   membership = createMembership((message) => transport.send(message), {
     clientId,
+    getPresence: () => ({
+      cursor: boundEl?.selectionStart ?? 0,
+      name: displayName,
+      color: displayColor,
+    }),
+    getStateVector: () => Object.fromEntries(sv),
     ...(options.foundingGraceMs !== undefined
       ? { foundingGraceMs: options.foundingGraceMs }
       : {}),
@@ -86,11 +114,16 @@ export const createWeavo = (
     ...(options.initialVersion !== undefined
       ? { initialVersion: options.initialVersion }
       : {}),
+    ...(options.heartbeatIntervalMs !== undefined
+      ? { heartbeatIntervalMs: options.heartbeatIntervalMs }
+      : {}),
+    ...(options.presenceTimeoutMs !== undefined
+      ? { presenceTimeoutMs: options.presenceTimeoutMs }
+      : {}),
   });
   const subscription = createSubscription();
 
   let before: InputSnapshot | null = null;
-  let boundEl: HTMLTextAreaElement | null = null;
   let pendingInput = false;
 
   const emitChange = (change: TextChange) => subscription.emit(change);
@@ -214,6 +247,8 @@ export const createWeavo = (
   return {
     bind,
     textSubscribe: subscription.subscribe,
+    onPresence: membership.onPresence,
+    getPresence: () => membership.getPresence(),
     snapshot: (): DocumentSnapshot => takeSnapshot(doc, sv),
     disconnect: () => {
       membership.cancel();

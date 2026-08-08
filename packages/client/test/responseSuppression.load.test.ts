@@ -35,7 +35,11 @@ const seedHubDocument = () => {
 };
 
 const joinedMembership = (clientId: ClientId) =>
-  createMembership(() => {}, { clientId, initialMembers: [clientId] });
+  createMembership(() => {}, {
+    clientId,
+    initialMembers: [clientId],
+    heartbeatIntervalMs: 0,
+  });
 
 const seededIds = () =>
   Array.from({ length: PEER_COUNT }, () => generateClientId());
@@ -44,7 +48,12 @@ const seededPeer = (
   room: CountingMemoryRoom,
   clientId: ClientId,
   members: ClientId[],
-) => createWeavo(room.join(), { clientId, initialMembers: members });
+) =>
+  createWeavo(room.join(), {
+    clientId,
+    initialMembers: members,
+    heartbeatIntervalMs: 0,
+  });
 
 describe("sync-response suppression load", () => {
   let randomSpy: ReturnType<typeof spyOn<typeof Math, "random">>;
