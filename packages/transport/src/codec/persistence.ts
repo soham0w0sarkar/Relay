@@ -27,7 +27,6 @@ import { readUtf8, writeUtf8 } from "./utf8";
 import { readUuid, writeUuid } from "./uuid";
 import { readVarint, writeVarint } from "./varint";
 
-/** Binary persistence envelope version (independent of DocumentSnapshot.version). */
 export const PERSIST_VERSION = 1;
 
 const fromKey = (key: OperationKey): OperationId => {
@@ -215,9 +214,17 @@ export const decodeDelta = (bytes: Uint8Array): Operation[] => {
   return ops;
 };
 
+type GlobalBuffer = {
+  from(data: Uint8Array | string, encoding?: string): Uint8Array & {
+    toString(encoding: string): string;
+  };
+};
+
+const nodeBuffer = (globalThis as { Buffer?: GlobalBuffer }).Buffer;
+
 export const bytesToBase64 = (bytes: Uint8Array): string => {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(bytes).toString("base64");
+  if (nodeBuffer) {
+    return nodeBuffer.from(bytes).toString("base64");
   }
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -225,8 +232,8 @@ export const bytesToBase64 = (bytes: Uint8Array): string => {
 };
 
 export const base64ToBytes = (value: string): Uint8Array => {
-  if (typeof Buffer !== "undefined") {
-    return new Uint8Array(Buffer.from(value, "base64"));
+  if (nodeBuffer) {
+    return new Uint8Array(nodeBuffer.from(value, "base64"));
   }
   const binary = atob(value);
   const bytes = new Uint8Array(binary.length);
