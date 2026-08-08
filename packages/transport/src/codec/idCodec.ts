@@ -8,7 +8,6 @@ export type IdCodec = {
   onMissingVersion?: (version: number) => void;
 };
 
-/** UUID-only codec used when no membership table is wired. */
 export const uuidOnlyCodec: IdCodec = {
   encodeVersion: () => 0,
   shortIdOf: () => null,

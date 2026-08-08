@@ -33,7 +33,6 @@ export const readVarint = (reader: Reader): number => {
   throw new Error("Varint exceeds uint32 range");
 };
 
-/** Encode a non-negative safe integer (fits JS number) as two uint32 varints. */
 export const writeUint53 = (writer: Writer, value: number) => {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new Error(`Value is outside uint53 range: ${value}`);
