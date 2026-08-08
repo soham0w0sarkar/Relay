@@ -14,10 +14,10 @@ staging="${root}/.pages"
 export NEXT_STATIC_EXPORT=1
 
 echo "Building demo (basePath=${demo_base})…"
-NEXT_PUBLIC_BASE_PATH="$demo_base" bun run --filter=demo build:pages
+NEXT_PUBLIC_BASE_PATH="$demo_base" bunx turbo run build:pages --filter=demo
 
 echo "Building docs (basePath=${docs_base})…"
-NEXT_PUBLIC_BASE_PATH="$docs_base" bun run --filter=docs build:pages
+NEXT_PUBLIC_BASE_PATH="$docs_base" bunx turbo run build:pages --filter=docs
 
 rm -rf "$staging"
 mkdir -p "$staging/docs"
