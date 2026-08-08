@@ -18,8 +18,6 @@ import {
   remove as removeFromStore,
 } from "../src/store/NodeStore";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 const CLIENT = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb" as ClientId;
 
 type StoreOp = Operation;
@@ -104,8 +102,6 @@ function formatDivergenceBlock(
   return lines.join("\n");
 }
 
-// ─── deterministic RNG ──────────────────────────────────────────────────────
-
 function rng(seed: number): () => number {
   let s = seed >>> 0 || 0x9e3779b9;
   return () => {
@@ -125,8 +121,6 @@ function shuffledIndices(n: number, seed: number): number[] {
   }
   return idx;
 }
-
-// ─── causal permutation ──────────────────────────────────────────────────────
 
 function causalPermutation(ops: StoreOp[], seed: number): number[] {
   const rand = rng(seed);
@@ -154,8 +148,6 @@ function causalPermutation(ops: StoreOp[], seed: number): number[] {
   }
   return order;
 }
-
-// ─── op generator ────────────────────────────────────────────────────────────
 
 function buildOps(bytes: Uint8Array): StoreOp[] {
   const ref = makeStore();
@@ -199,8 +191,6 @@ function buildOps(bytes: Uint8Array): StoreOp[] {
   }
   return ops;
 }
-
-// ─── unit tests ─────────────────────────────────────────────────────────────
 
 describe("NodeStore — unit", () => {
   test("empty store returns empty string", () => {
@@ -292,8 +282,6 @@ describe("NodeStore — unit", () => {
   });
 });
 
-// ─── property tests ──────────────────────────────────────────────────────────
-
 describe("NodeStore — convergence", () => {
   test("concurrent ROOT-origin inserts converge under any ordering", () => {
     fc.assert(
@@ -307,7 +295,7 @@ describe("NodeStore — convergence", () => {
         ),
         fc.integer(),
         (pairs, seed) => {
-          // use index as counter — guarantees unique IDs per client
+
           const ops: InsertOperation[] = pairs.map(([_, ch], idx) =>
             createInsertOperation([CLIENT, idx], ch, ROOT_ID, null),
           );
@@ -360,8 +348,6 @@ describe("NodeStore — convergence", () => {
     }
   });
 });
-
-// ─── load tests ──────────────────────────────────────────────────────────────
 
 describe("NodeStore — load", () => {
   test("100k chained inserts complete under 10s", () => {

@@ -200,7 +200,7 @@ describe("message codec", () => {
 
     for (const message of messages) {
       const bytes = encodeMessage(message);
-      expect(bytes[1]).toBe(0x04); // MSG_MEMBERSHIP
+      expect(bytes[1]).toBe(0x04);
       expect(bytes.byteLength).toBeLessThan(JSON.stringify(message).length + 8);
       expect(decodeMessage(bytes)).toEqual(message);
     }

@@ -25,8 +25,6 @@ describe("NodeStore", () => {
     return createNodeStore(root);
   };
 
-  // ─── createNodeStore ────────────────────────────────────────────────────────
-
   describe("createNodeStore", () => {
     test("stores root in nodes map under ROOT key", () => {
       const root = createNode(ROOT_ID, "", false, null, null);
@@ -38,15 +36,11 @@ describe("NodeStore", () => {
     });
   });
 
-  // ─── getText ────────────────────────────────────────────────────────────────
-
   describe("getText", () => {
     test("returns empty string for fresh store", () => {
       assert.strictEqual(getText(makeStore()), "");
     });
   });
-
-  // ─── insert ─────────────────────────────────────────────────────────────────
 
   describe("insert", () => {
     test("appends a single character after root", () => {
@@ -76,7 +70,6 @@ describe("NodeStore", () => {
       const idLow = generateOperationId(ALICE, 1);
       const idHigh = generateOperationId(ALICE, 2);
 
-      // order 1
       insertIntoStore(
         store1,
         createInsertOperation(idHigh, "z", ROOT_ID, null),
@@ -84,7 +77,6 @@ describe("NodeStore", () => {
       insertIntoStore(store1, createInsertOperation(idLow, "a", ROOT_ID, null));
       assert.strictEqual(getText(store1), "az");
 
-      // order 2 — reversed, must converge
       const store2 = makeStore();
       insertIntoStore(
         store2,
@@ -99,8 +91,6 @@ describe("NodeStore", () => {
 
       const idAlice = generateOperationId(ALICE, 1);
       const idBob = generateOperationId(BOB, 1);
-
-      // Alice < Bob, so Alice goes left
 
       insertIntoStore(
         store1,
@@ -124,28 +114,23 @@ describe("NodeStore", () => {
     });
 
     test("nested insert stays glued to its anchor regardless of ordering", () => {
-      // A and B insert concurrently at ROOT
-      // C inserts after A — must stay next to A, not drift past B
+
       const idA = generateOperationId(ALICE, 1);
       const idB = generateOperationId(BOB, 2);
       const idC = generateOperationId(ALICE, 3);
 
-      // order 1 — A, B, C
       const store1 = makeStore();
       insertIntoStore(store1, createInsertOperation(idA, "a", ROOT_ID, null));
       insertIntoStore(store1, createInsertOperation(idB, "b", ROOT_ID, null));
       insertIntoStore(store1, createInsertOperation(idC, "c", idA, null));
       assert.strictEqual(getText(store1), "acb");
 
-      // order 2 — B first, then A, then C
       const store2 = makeStore();
       insertIntoStore(store2, createInsertOperation(idB, "b", ROOT_ID, null));
       insertIntoStore(store2, createInsertOperation(idA, "a", ROOT_ID, null));
       insertIntoStore(store2, createInsertOperation(idC, "c", idA, null));
       assert.strictEqual(getText(store2), "acb");
 
-      // order 3 — B first, then C arrives before A (causal: C needs A so skip)
-      // order 3 — A, C, B
       const store3 = makeStore();
       insertIntoStore(store3, createInsertOperation(idA, "a", ROOT_ID, null));
       insertIntoStore(store3, createInsertOperation(idC, "c", idA, null));
@@ -157,10 +142,6 @@ describe("NodeStore", () => {
       const idA = generateOperationId(ALICE, 1);
       const idB = generateOperationId(BOB, 2);
       const idC = generateOperationId(CAROL, 1);
-
-      // ALICE(1) and CAROL(1) have same counter → tiebreak by clientId
-      // ALICE < CAROL < BOB(higher counter loses)
-      // expected: "acb"
 
       const orderings = [
         [idA, idB, idC],
@@ -202,8 +183,6 @@ describe("NodeStore", () => {
       );
     });
   });
-
-  // ─── remove ─────────────────────────────────────────────────────────────────
 
   describe("remove", () => {
     test("tombstones a node so getText skips it", () => {
