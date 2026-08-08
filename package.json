@@ -14,7 +14,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "build:pages": "turbo run build:pages --filter=demo",
+    "build:pages": "bash scripts/build-pages.sh",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
@@ -24,7 +24,8 @@
     "version-packages": "changeset version",
     "release": "turbo run build --filter=@weavo/core --filter=@weavo/sync --filter=@weavo/transport --filter=@weavo/client --filter=@weavo/membership && changeset publish",
     "tag-release": "bash scripts/tag-release.sh",
-    "tag-demo": "bash scripts/tag-demo.sh"
+    "tag-demo": "bash scripts/tag-demo.sh",
+    "tag-docs": "bash scripts/tag-docs.sh"
   },
   "workspaces": [
     "apps/*",

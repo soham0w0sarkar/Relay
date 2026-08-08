@@ -1,14 +1,15 @@
-# Deploy the Weavo demo (apps/demo) to GitHub Pages.
-# Runs on demo@* release tags or manual dispatch.
-# Requires github-pages environment to allow tag pattern "demo@*"
+# Deploy the Weavo demo + docs to GitHub Pages.
+# Runs on demo@* / docs@* release tags or manual dispatch.
+# Requires github-pages environment to allow tag patterns "demo@*" and "docs@*"
 # (Settings → Environments → github-pages → Deployment branches and tags).
 
-name: Deploy Weavo demo to GitHub Pages
+name: Deploy Weavo to GitHub Pages
 
 on:
   push:
     tags:
       - "demo@*"
+      - "docs@*"
   workflow_dispatch:
 
 permissions:
@@ -46,9 +47,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build demo for GitHub Pages
+      - name: Build demo + docs for GitHub Pages
         env:
-          NEXT_STATIC_EXPORT: "1"
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
           NEXT_PUBLIC_WEAVO_WS_URL: ${{ secrets.WEAVO_WS_URL }}
         run: bun run build:pages
@@ -56,7 +56,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/demo/out
+          path: .pages
 
   deploy:
     needs: build
