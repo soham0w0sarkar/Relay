@@ -247,6 +247,16 @@ Ballots are `(epoch, proposerId)`. Total order, no sequencer.
 
 ---
 
+## Presence is not membership
+
+Presence is ephemeral: who is here right now, where their cursor is, what they call themselves. It is a last-write-wins map keyed by `clientId`. Every joined peer broadcasts a `HEARTBEAT` about every 2s carrying `{ cursor, name, color }`, plus piggybacked `membershipVersion` and `sv`. Receivers keep the entry with the higher timestamp. Miss ~10s of heartbeats and the peer drops out of the local presence map.
+
+Wrong presence for a beat is a flicker. Wrong membership is a permanently corrupted document. Different stakes, different tools — LWW eventual consistency here, CASPaxos on the member set.
+
+`weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Leave/remove proposals after a longer silence still sit on the open membership spine.
+
+---
+
 ## Key design question
 
 For every new idea: **whose package?**
@@ -257,6 +267,7 @@ For every new idea: **whose package?**
 | “I have clocks you don't”           | `@weavo/sync`       |
 | Wire + persistence serialization    | `@weavo/transport`  |
 | Member set / shortId table / commit | `@weavo/membership` |
+| Presence / liveness heartbeats      | `@weavo/membership` |
 | Forward bytes                       | relay               |
 | DOM textarea + selection            | `@weavo/client`     |
 
@@ -271,7 +282,7 @@ For every new idea: **whose package?**
 - ~~Binary snapshot / delta persistence codec (UUID-stable)~~
 - ~~Late joiners who missed a `COMMIT` (ops wait in the buffer until their membership version arrives)~~
 - Leave / remove on the same prepare → accept → commit spine
-- Heartbeats for presence / failure detection once the set is stable
-- Tombstone GC once we can compute a frontier over live members
+- ~~Heartbeats for presence / failure detection once the set is stable~~
+- Tombstone GC once we can compute a frontier over live members (sv already rides on heartbeats)
 
 Each of those is probably another “oh, now we need…” — same pattern as how we got here.
