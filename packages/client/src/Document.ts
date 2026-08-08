@@ -41,6 +41,7 @@ export type WeavoOptions = {
   color?: string;
   heartbeatIntervalMs?: number;
   presenceTimeoutMs?: number;
+  removalTimeoutMs?: number;
   initial?: {
     snapshot: DocumentSnapshot;
     delta?: Operation[];
@@ -81,6 +82,8 @@ export const createWeavo = (
 
   const displayName = options.name ?? clientId.slice(0, 8);
   const displayColor = options.color ?? colorFromId(clientId);
+  let presenceName = displayName;
+  let presenceColor = displayColor;
 
   let boundEl: HTMLTextAreaElement | null = null;
 
@@ -101,8 +104,8 @@ export const createWeavo = (
     clientId,
     getPresence: () => ({
       cursor: boundEl?.selectionStart ?? 0,
-      name: displayName,
-      color: displayColor,
+      name: presenceName,
+      color: presenceColor,
     }),
     getStateVector: () => Object.fromEntries(sv),
     ...(options.foundingGraceMs !== undefined
@@ -119,6 +122,9 @@ export const createWeavo = (
       : {}),
     ...(options.presenceTimeoutMs !== undefined
       ? { presenceTimeoutMs: options.presenceTimeoutMs }
+      : {}),
+    ...(options.removalTimeoutMs !== undefined
+      ? { removalTimeoutMs: options.removalTimeoutMs }
       : {}),
   });
   const subscription = createSubscription();
@@ -249,9 +255,13 @@ export const createWeavo = (
     textSubscribe: subscription.subscribe,
     onPresence: membership.onPresence,
     getPresence: () => membership.getPresence(),
+    setIdentity: (identity: { name?: string; color?: string }) => {
+      if (identity.name !== undefined) presenceName = identity.name;
+      if (identity.color !== undefined) presenceColor = identity.color;
+    },
     snapshot: (): DocumentSnapshot => takeSnapshot(doc, sv),
     disconnect: () => {
-      membership.cancel();
+      membership.leave();
       transport.disconnect();
     },
     membership,

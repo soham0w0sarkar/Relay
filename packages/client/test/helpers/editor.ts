@@ -87,7 +87,6 @@ export const pasteText = (el: HTMLTextAreaElement, text: string) => {
   dispatchInput(el, "insertFromPaste", text);
 };
 
-/** Rapid single-character inserts without yielding — simulates fast typing. */
 export const typeFast = (el: HTMLTextAreaElement, text: string) => {
   for (const char of text) insertText(el, char);
 };
