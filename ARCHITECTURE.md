@@ -253,7 +253,19 @@ Presence is ephemeral: who is here right now, where their cursor is, what they c
 
 Wrong presence for a beat is a flicker. Wrong membership is a permanently corrupted document. Different stakes, different tools — LWW eventual consistency here, CASPaxos on the member set.
 
-`weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Leave/remove proposals after a longer silence still sit on the open membership spine.
+`weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Leave is the durable path: graceful `LEAVE` or silence past the removal timeout proposes `removeMember` on the same prepare → accept → commit spine.
+
+---
+
+## Leave is durable membership change
+
+Presence drops a silent peer from the UI in ~10s. Membership waits longer (~30s from last heartbeat) before proposing removal — brief partitions should not rewrite the shortId table.
+
+**Graceful** — `weavo.disconnect()` broadcasts `LEAVE`, clears local presence, and peers propose `removeMember` immediately. No suspect window.
+
+**Ungraceful** — heartbeats stop → suspect at ~10s (cursor gone) → propose remove at ~30s → CASPaxos. A heartbeat before `COMMIT` cancels that removal (`revive`). After `COMMIT`, a returning peer sees it is absent and sends `JOIN_REQUEST`.
+
+Concurrent removals collide like concurrent joins: carry-forward picks one committed snapshot; the other defer to the next version. Quorum for a leave uses the post-removal size so a departing peer is not required to vote on its own exit.
 
 ---
 
@@ -281,7 +293,7 @@ For every new idea: **whose package?**
 - ~~Binary membership frames (UUID ids; no shortId on the consensus path)~~
 - ~~Binary snapshot / delta persistence codec (UUID-stable)~~
 - ~~Late joiners who missed a `COMMIT` (ops wait in the buffer until their membership version arrives)~~
-- Leave / remove on the same prepare → accept → commit spine
+- ~~Leave / remove on the same prepare → accept → commit spine~~
 - ~~Heartbeats for presence / failure detection once the set is stable~~
 - Tombstone GC once we can compute a frontier over live members (sv already rides on heartbeats)
 
