@@ -14,6 +14,8 @@ import type { MembershipMessage } from "../../src/types";
 const ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as ClientId;
 const BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as ClientId;
 
+const noHeartbeat = { heartbeatIntervalMs: 0 as const };
+
 beforeEach(() => {
   jest.useFakeTimers();
   spyOn(Math, "random").mockReturnValue(0);
@@ -26,7 +28,10 @@ afterEach(() => {
 
 describe("createMembership", () => {
   test("starts unjoined with an empty membership table", () => {
-    const membership = createMembership(() => {}, { clientId: ALICE });
+    const membership = createMembership(() => {}, {
+      clientId: ALICE,
+      ...noHeartbeat,
+    });
 
     expect(membership.isJoined()).toBe(false);
     expect(membership.getCurrent()?.members).toEqual([]);
@@ -37,6 +42,7 @@ describe("createMembership", () => {
     const membership = createMembership(() => {}, {
       clientId: ALICE,
       initialMembers: [ALICE],
+      ...noHeartbeat,
     });
 
     expect(membership.isJoined()).toBe(true);
@@ -48,6 +54,7 @@ describe("createMembership", () => {
     const membership = createMembership((msg) => bus.push(msg), {
       clientId: ALICE,
       foundingGraceMs: 0,
+      ...noHeartbeat,
     });
 
     const joined: unknown[] = [];
@@ -66,7 +73,10 @@ describe("createMembership", () => {
   });
 
   test("JOIN_RESPONSE commits and marks the joiner as joined", () => {
-    const membership = createMembership(() => {}, { clientId: BOB });
+    const membership = createMembership(() => {}, {
+      clientId: BOB,
+      ...noHeartbeat,
+    });
     expect(membership.isJoined()).toBe(false);
 
     membership.onMessage({
@@ -89,6 +99,7 @@ describe("createMembership", () => {
     const membership = createMembership(() => {}, {
       clientId: ALICE,
       initialMembers: [ALICE],
+      ...noHeartbeat,
     });
     membership.onMessage({
       type: "MEMBERSHIP_RESPONSE",

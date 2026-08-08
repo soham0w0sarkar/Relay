@@ -1,6 +1,7 @@
 import type { ClientId } from "@weavo/core";
-import type { MembershipMessage } from "./consesous/types";
+import type { MembershipMessage, PresencePayload } from "./consesous/types";
 import type { Membership, MembershipStore } from "./membershipStore/types";
+import type { PeerPresence } from "./presence";
 
 export type { Member, Membership, MembershipStore } from "./membershipStore/types";
 
@@ -21,11 +22,23 @@ export type {
   PromiseMessage,
 } from "./consesous/types";
 
+export type {
+  PeerPresence,
+  PresenceCRDT,
+  PresenceEntry,
+  PresenceTracker,
+  PresenceTrackerOptions,
+} from "./presence";
+
 export type CreateMembershipOptions = {
   clientId: ClientId;
   initialMembers?: ClientId[];
   initialVersion?: number;
   foundingGraceMs?: number;
+  heartbeatIntervalMs?: number;
+  presenceTimeoutMs?: number;
+  getPresence?: () => PresencePayload;
+  getStateVector?: () => Record<string, number>;
 };
 
 export type MembershipHandle = {
@@ -41,4 +54,12 @@ export type MembershipHandle = {
   clientIdOf: (shortId: number) => ClientId | null;
   isJoined: () => boolean;
   onJoined: (listener: (membership: Membership) => void) => () => void;
+  getPresence: () => Map<ClientId, PeerPresence>;
+  onPresence: (
+    listener: (presence: Map<ClientId, PeerPresence>) => void,
+  ) => () => void;
+  setPresenceSource: (source: {
+    getPresence?: () => PresencePayload;
+    getStateVector?: () => Record<string, number>;
+  }) => void;
 };

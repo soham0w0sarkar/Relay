@@ -53,7 +53,12 @@ class HostileRoom {
   addPeer(id: ClientId, initialMembers: ClientId[]) {
     const handle = createMembership(
       (msg) => this.broadcast(id, msg),
-      { clientId: id, initialMembers, initialVersion: 0 },
+      {
+        clientId: id,
+        initialMembers,
+        initialVersion: 0,
+        heartbeatIntervalMs: 0,
+      },
     );
     this.peers.set(id, handle);
     return handle;
@@ -251,6 +256,7 @@ describe("hostile membership convergence", () => {
         createMembership((msg) => broadcast(id, msg), {
           clientId: id,
           initialMembers: all,
+          heartbeatIntervalMs: 0,
         }),
       );
     }

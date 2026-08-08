@@ -8,14 +8,27 @@ import {
   getClientId,
   getShortId,
 } from "./membershipStore";
+import { createPresenceTracker, type PeerPresence } from "./presence";
 import type {
   CreateMembershipOptions,
   MembershipHandle,
   MembershipMessage,
+  PresencePayload,
 } from "./types";
 import type { Membership } from "./membershipStore/types";
 
 const DEFAULT_FOUNDING_GRACE_MS = 750;
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 2_000;
+
+const defaultPresence = (): PresencePayload => ({
+  cursor: 0,
+  name: "",
+  color: "",
+});
+
+const stateVectorToRecord = (
+  getStateVector?: () => Record<string, number>,
+): Record<string, number> => getStateVector?.() ?? {};
 
 export const createMembership = (
   broadcast: (message: MembershipMessage) => void,
@@ -24,20 +37,72 @@ export const createMembership = (
   const { clientId } = options;
   const initialMembers = options.initialMembers ?? [];
   const foundingGraceMs = options.foundingGraceMs ?? DEFAULT_FOUNDING_GRACE_MS;
+  const heartbeatIntervalMs =
+    options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
   const store = createMembershipStore(
     buildMembership(options.initialVersion ?? 0, initialMembers),
   );
 
+  let getPresence = options.getPresence ?? defaultPresence;
+  let getStateVector = options.getStateVector;
+
+  const presence = createPresenceTracker({
+    clientId,
+    ...(options.presenceTimeoutMs !== undefined
+      ? { timeoutMs: options.presenceTimeoutMs }
+      : {}),
+  });
+
   const joinListeners = new Set<(membership: Membership) => void>();
+  const presenceListeners = new Set<
+    (peers: Map<ClientId, PeerPresence>) => void
+  >();
+
   let joined = initialMembers.includes(clientId);
   let founding = false;
   let foundingTimer: ReturnType<typeof setTimeout> | null = null;
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   const clearFoundingTimer = () => {
     if (foundingTimer !== null) {
       clearTimeout(foundingTimer);
       foundingTimer = null;
     }
+  };
+
+  const stopHeartbeat = () => {
+    if (heartbeatTimer !== null) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  };
+
+  const notifyPresence = () => {
+    const snapshot = presence.snapshot();
+    for (const listener of presenceListeners) listener(snapshot);
+  };
+
+  const touchPresence = (changed: boolean) => {
+    const evicted = presence.evictStale();
+    if (changed || evicted.length > 0) notifyPresence();
+  };
+
+  const sendHeartbeat = () => {
+    if (!joined) return;
+    outbound({
+      type: "HEARTBEAT",
+      clientId,
+      membershipVersion: store.currentVersion,
+      timestamp: Date.now(),
+      presence: getPresence(),
+      sv: stateVectorToRecord(getStateVector),
+    });
+  };
+
+  const startHeartbeat = () => {
+    if (heartbeatTimer !== null || !joined || heartbeatIntervalMs <= 0) return;
+    sendHeartbeat();
+    heartbeatTimer = setInterval(sendHeartbeat, heartbeatIntervalMs);
   };
 
   const notifyIfJoined = () => {
@@ -50,6 +115,7 @@ export const createMembership = (
     founding = false;
     clearFoundingTimer();
     for (const listener of joinListeners) listener(current);
+    startHeartbeat();
   };
 
   const canRunConsensus = () => joined || founding;
@@ -116,6 +182,10 @@ export const createMembership = (
         commit(store, message.membership);
         notifyIfJoined();
         break;
+      case "HEARTBEAT":
+        if (!joined) break;
+        touchPresence(presence.fromHeartbeat(message));
+        break;
       default:
         break;
     }
@@ -146,6 +216,8 @@ export const createMembership = (
     });
   };
 
+  if (joined) startHeartbeat();
+
   return {
     clientId,
     store,
@@ -154,6 +226,7 @@ export const createMembership = (
     requestMembership,
     cancel: () => {
       clearFoundingTimer();
+      stopHeartbeat();
       proposer.cancel();
     },
     getCurrent: () => get(store, store.currentVersion),
@@ -176,6 +249,18 @@ export const createMembership = (
       return () => {
         joinListeners.delete(listener);
       };
+    },
+    getPresence: () => presence.snapshot(),
+    onPresence: (listener) => {
+      presenceListeners.add(listener);
+      listener(presence.snapshot());
+      return () => {
+        presenceListeners.delete(listener);
+      };
+    },
+    setPresenceSource: (source) => {
+      if (source.getPresence) getPresence = source.getPresence;
+      if (source.getStateVector) getStateVector = source.getStateVector;
     },
   };
 };

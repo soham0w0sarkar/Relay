@@ -12,6 +12,29 @@ CASPaxos-based membership, presence, liveness, and GC frontier for Weavo rooms.
 npm install @weavo/membership
 ```
 
+## What it owns
+
+- **Membership** — versioned UUID → `shortId` tables committed with prepare / accept / commit
+- **Presence** — LWW map of live peers (`cursor`, `name`, `color`) updated from `HEARTBEAT`s
+- **Heartbeats** — ~2s broadcast after join; carries presence plus piggybacked `membershipVersion` and state vector
+- **Eviction** — peers silent for ~10s drop out of the local presence map
+
+```ts
+import { createMembership } from "@weavo/membership";
+
+const membership = createMembership(send, {
+  clientId,
+  getPresence: () => ({ cursor, name, color }),
+  getStateVector: () => Object.fromEntries(sv),
+});
+
+membership.onPresence((peers) => {
+  // Map<ClientId, { clientId, cursor, name, color }>
+});
+```
+
+Pass `heartbeatIntervalMs: 0` to disable the timer (tests).
+
 ## Development
 
 ```bash
