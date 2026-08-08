@@ -23,6 +23,11 @@ export type {
 } from "./consesous/types";
 
 export type {
+  LivenessEntry,
+  LivenessStatus,
+  LivenessSweep,
+  LivenessTracker,
+  LivenessTrackerOptions,
   PeerPresence,
   PresenceCRDT,
   PresenceEntry,
@@ -37,6 +42,7 @@ export type CreateMembershipOptions = {
   foundingGraceMs?: number;
   heartbeatIntervalMs?: number;
   presenceTimeoutMs?: number;
+  removalTimeoutMs?: number;
   getPresence?: () => PresencePayload;
   getStateVector?: () => Record<string, number>;
 };
@@ -47,6 +53,7 @@ export type MembershipHandle = {
   onMessage: (message: MembershipMessage) => void;
   requestJoin: (joiningId?: ClientId) => void;
   requestMembership: (version: number) => void;
+  leave: () => void;
   cancel: () => void;
   getCurrent: () => Membership | null;
   getVersion: (version: number) => Membership | null;

@@ -30,6 +30,7 @@ export type PresenceTracker = {
   entries: PresenceCRDT;
   update: (entry: PresenceEntry) => boolean;
   merge: (other: PresenceCRDT) => boolean;
+  remove: (clientId: ClientId) => boolean;
   evictStale: (now?: number) => ClientId[];
   snapshot: () => Map<ClientId, PeerPresence>;
   fromHeartbeat: (input: {
@@ -113,6 +114,7 @@ export const createPresenceTracker = (
       }
       return changed;
     },
+    remove: (clientId) => entries.delete(clientId),
     evictStale: (at = now()) => evictStale(entries, timeoutMs, at),
     snapshot: () => toPeerPresence(entries),
     fromHeartbeat: (input) =>

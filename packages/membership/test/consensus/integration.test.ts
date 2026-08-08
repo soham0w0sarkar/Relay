@@ -123,7 +123,6 @@ describe("consensus integration", () => {
     }
     deliver();
 
-    // Alice (rank 0) proposes first; COMMIT cancels other proposers
     jest.advanceTimersByTime(200);
     deliver();
 
@@ -146,15 +145,12 @@ describe("consensus integration", () => {
     const out: MembershipMessage[] = [];
     const proposer = createProposer(store, (m) => out.push(m), ALICE);
 
-    // Simulate mid-protocol: proposal already in flight for conflicting value
     proposer.onJoinRequest({ type: "JOIN_REQUEST", clientId: DAVE });
     jest.advanceTimersByTime(200);
     expect(out[0]?.type).toBe("PREPARE");
     const ballot = createBallot(0, ALICE);
     out.length = 0;
 
-    // Quorum promises: one carries the earlier accepted (CAROL) membership
-    // with a stronger prior ballot than any other.
     proposer.onPromise({
       type: "PROMISE",
       ballot,

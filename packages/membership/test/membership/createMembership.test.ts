@@ -61,8 +61,8 @@ describe("createMembership", () => {
     membership.onJoined((m) => joined.push(m));
 
     membership.requestJoin();
-    jest.advanceTimersByTime(0); // founding grace
-    jest.advanceTimersByTime(200); // proposal batch window
+    jest.advanceTimersByTime(0);
+    jest.advanceTimersByTime(200);
 
     expect(membership.isJoined()).toBe(true);
     expect(membership.getCurrent()?.members.map((m) => m.clientId)).toEqual([

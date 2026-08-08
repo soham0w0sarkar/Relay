@@ -56,11 +56,10 @@ describe("Proposer", () => {
 
     proposer.onJoinRequest({ type: "JOIN_REQUEST", clientId: BOB });
     proposer.onJoinRequest({ type: "JOIN_REQUEST", clientId: CAROL });
-    proposer.onJoinRequest({ type: "JOIN_REQUEST", clientId: BOB }); // dedupe
+    proposer.onJoinRequest({ type: "JOIN_REQUEST", clientId: BOB });
 
     expect(messages).toHaveLength(0);
 
-    // rank 0 → delay = BATCH_WINDOW (200) + jitter 0
     jest.advanceTimersByTime(199);
     expect(messages).toHaveLength(0);
     jest.advanceTimersByTime(1);
@@ -95,7 +94,6 @@ describe("Proposer", () => {
       lastAcceptedMembership: null,
     });
 
-    // quorum for 3 members = 2
     proposer.onPromise(promise(ALICE));
     expect(ofType(messages, "ACCEPT")).toHaveLength(0);
 
@@ -162,11 +160,10 @@ describe("Proposer", () => {
     messages.length = 0;
 
     const proposedByUs = buildMembership(1, [ALICE, BOB, CAROL]);
-    const earlierAccepted = buildMembership(1, [ALICE, BOB]); // different value, same slot
-    // actually both version 1 - carry membership content differs
+    const earlierAccepted = buildMembership(1, [ALICE, BOB]);
+
     const carried = buildMembership(1, [ALICE, "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" as ClientId]);
 
-    // quorum for 2 = 2
     proposer.onPromise({
       type: "PROMISE",
       ballot: prepare.ballot,
@@ -274,7 +271,6 @@ describe("Proposer", () => {
     jest.advanceTimersByTime(200);
     expect(ofType(messages, "PREPARE")[0]?.ballot.epoch).toBe(0);
 
-    // PREPARE_TIMEOUT = 2000, jitter 0
     jest.advanceTimersByTime(2000);
     const prepares = ofType(messages, "PREPARE");
     expect(prepares).toHaveLength(2);

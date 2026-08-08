@@ -17,7 +17,8 @@ npm install @weavo/membership
 - **Membership** — versioned UUID → `shortId` tables committed with prepare / accept / commit
 - **Presence** — LWW map of live peers (`cursor`, `name`, `color`) updated from `HEARTBEAT`s
 - **Heartbeats** — ~2s broadcast after join; carries presence plus piggybacked `membershipVersion` and state vector
-- **Eviction** — peers silent for ~10s drop out of the local presence map
+- **Liveness** — silent peers become suspect (~10s, presence dropped) then proposed for removal (~30s)
+- **Leave** — graceful `LEAVE` or ungraceful timeout → `removeMember` via the same consensus spine as join
 
 ```ts
 import { createMembership } from "@weavo/membership";
@@ -31,9 +32,12 @@ const membership = createMembership(send, {
 membership.onPresence((peers) => {
   // Map<ClientId, { clientId, cursor, name, color }>
 });
+
+// Graceful exit — peers remove you via CASPaxos
+membership.leave();
 ```
 
-Pass `heartbeatIntervalMs: 0` to disable the timer (tests).
+Pass `heartbeatIntervalMs: 0` to disable the timer (tests). Tune `presenceTimeoutMs` / `removalTimeoutMs` for suspect vs remove thresholds.
 
 ## Development
 

@@ -8,7 +8,11 @@ import {
   getClientId,
   getShortId,
 } from "./membershipStore";
-import { createPresenceTracker, type PeerPresence } from "./presence";
+import {
+  createLivenessTracker,
+  createPresenceTracker,
+  type PeerPresence,
+} from "./presence";
 import type {
   CreateMembershipOptions,
   MembershipHandle,
@@ -19,6 +23,8 @@ import type { Membership } from "./membershipStore/types";
 
 const DEFAULT_FOUNDING_GRACE_MS = 750;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 2_000;
+const DEFAULT_PRESENCE_TIMEOUT_MS = 10_000;
+const DEFAULT_REMOVAL_TIMEOUT_MS = 30_000;
 
 const defaultPresence = (): PresencePayload => ({
   cursor: 0,
@@ -30,6 +36,9 @@ const stateVectorToRecord = (
   getStateVector?: () => Record<string, number>,
 ): Record<string, number> => getStateVector?.() ?? {};
 
+const memberIds = (membership: Membership | null): ClientId[] =>
+  membership?.members.map((member) => member.clientId) ?? [];
+
 export const createMembership = (
   broadcast: (message: MembershipMessage) => void,
   options: CreateMembershipOptions,
@@ -39,6 +48,10 @@ export const createMembership = (
   const foundingGraceMs = options.foundingGraceMs ?? DEFAULT_FOUNDING_GRACE_MS;
   const heartbeatIntervalMs =
     options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
+  const presenceTimeoutMs =
+    options.presenceTimeoutMs ?? DEFAULT_PRESENCE_TIMEOUT_MS;
+  const removalTimeoutMs =
+    options.removalTimeoutMs ?? DEFAULT_REMOVAL_TIMEOUT_MS;
   const store = createMembershipStore(
     buildMembership(options.initialVersion ?? 0, initialMembers),
   );
@@ -48,9 +61,11 @@ export const createMembership = (
 
   const presence = createPresenceTracker({
     clientId,
-    ...(options.presenceTimeoutMs !== undefined
-      ? { timeoutMs: options.presenceTimeoutMs }
-      : {}),
+    timeoutMs: presenceTimeoutMs,
+  });
+  const liveness = createLivenessTracker({
+    presenceTimeoutMs,
+    removalTimeoutMs,
   });
 
   const joinListeners = new Set<(membership: Membership) => void>();
@@ -82,9 +97,108 @@ export const createMembership = (
     for (const listener of presenceListeners) listener(snapshot);
   };
 
-  const touchPresence = (changed: boolean) => {
-    const evicted = presence.evictStale();
-    if (changed || evicted.length > 0) notifyPresence();
+  const dropPresence = (id: ClientId): boolean => {
+    if (!presence.remove(id)) return false;
+    notifyPresence();
+    return true;
+  };
+
+  let handle: (message: MembershipMessage) => void = () => {};
+
+  const outbound = (message: MembershipMessage) => {
+    handle(message);
+    broadcast(message);
+  };
+
+  const proposer = createProposer(store, outbound, clientId);
+  const acceptor = createAcceptor(store, outbound, clientId);
+
+  const queueRemoval = (leavingId: ClientId) => {
+    if (!joined || leavingId === clientId) return;
+    const current = get(store, store.currentVersion);
+    if (!current?.members.some((member) => member.clientId === leavingId)) {
+      return;
+    }
+    proposer.onLeaveRequest({ type: "LEAVE", clientId: leavingId });
+  };
+
+  const applyLivenessSweep = () => {
+    if (!joined) return;
+
+    const { suspected, expired } = liveness.sweep();
+    let presenceChanged = false;
+
+    for (const id of suspected) {
+      if (id === clientId) continue;
+      if (presence.remove(id)) presenceChanged = true;
+    }
+
+    for (const id of expired) {
+      if (id === clientId) continue;
+      if (presence.remove(id)) presenceChanged = true;
+      queueRemoval(id);
+    }
+
+    if (presenceChanged) notifyPresence();
+  };
+
+  const onPeerHeartbeat = (
+    message: Extract<MembershipMessage, { type: "HEARTBEAT" }>,
+  ) => {
+    const changed = presence.fromHeartbeat(message);
+    liveness.touch(message.clientId, message.timestamp);
+    proposer.revive(message.clientId);
+    if (changed) notifyPresence();
+    applyLivenessSweep();
+  };
+
+  const syncAfterMembershipChange = () => {
+    const current = get(store, store.currentVersion);
+    const ids = memberIds(current);
+    const dropped = liveness.syncMembers(ids);
+    let presenceChanged = false;
+    for (const id of dropped) {
+      if (presence.remove(id)) presenceChanged = true;
+    }
+    if (presenceChanged) notifyPresence();
+  };
+
+  const notifyIfJoined = () => {
+    if (joined) return;
+    const current = get(store, store.currentVersion);
+    if (!current?.members.some((member) => member.clientId === clientId)) {
+      return;
+    }
+    joined = true;
+    founding = false;
+    clearFoundingTimer();
+    liveness.seed(memberIds(current));
+    for (const listener of joinListeners) listener(current);
+    startHeartbeat();
+  };
+
+  const handleSelfRemoval = () => {
+    if (!joined) return;
+    const current = get(store, store.currentVersion);
+    if (!current) return;
+    if (current.members.some((member) => member.clientId === clientId)) {
+      return;
+    }
+
+    joined = false;
+    stopHeartbeat();
+    presence.remove(clientId);
+    liveness.remove(clientId);
+    notifyPresence();
+    requestJoin(clientId);
+  };
+
+  const canRunConsensus = () => joined || founding;
+
+  const beginFounding = (joiningId: ClientId) => {
+    if (joined || founding) return;
+    founding = true;
+    proposer.onJoinRequest({ type: "JOIN_REQUEST", clientId: joiningId });
   };
 
   const sendHeartbeat = () => {
@@ -105,37 +219,6 @@ export const createMembership = (
     heartbeatTimer = setInterval(sendHeartbeat, heartbeatIntervalMs);
   };
 
-  const notifyIfJoined = () => {
-    if (joined) return;
-    const current = get(store, store.currentVersion);
-    if (!current?.members.some((member) => member.clientId === clientId)) {
-      return;
-    }
-    joined = true;
-    founding = false;
-    clearFoundingTimer();
-    for (const listener of joinListeners) listener(current);
-    startHeartbeat();
-  };
-
-  const canRunConsensus = () => joined || founding;
-
-  let handle: (message: MembershipMessage) => void = () => {};
-
-  const outbound = (message: MembershipMessage) => {
-    handle(message);
-    broadcast(message);
-  };
-
-  const proposer = createProposer(store, outbound, clientId);
-  const acceptor = createAcceptor(store, outbound, clientId);
-
-  const beginFounding = (joiningId: ClientId) => {
-    if (joined || founding) return;
-    founding = true;
-    proposer.onJoinRequest({ type: "JOIN_REQUEST", clientId: joiningId });
-  };
-
   handle = (message: MembershipMessage) => {
     switch (message.type) {
       case "JOIN_REQUEST": {
@@ -150,6 +233,14 @@ export const createMembership = (
         if (empty && message.clientId !== clientId) {
           beginFounding(clientId);
           proposer.onJoinRequest(message);
+        }
+        break;
+      }
+      case "LEAVE": {
+        liveness.remove(message.clientId);
+        dropPresence(message.clientId);
+        if (joined) {
+          proposer.onLeaveRequest(message);
         }
         break;
       }
@@ -168,23 +259,29 @@ export const createMembership = (
       case "COMMIT":
         acceptor.onCommit(message);
         proposer.cancel();
+        syncAfterMembershipChange();
         notifyIfJoined();
+        handleSelfRemoval();
         break;
       case "JOIN_RESPONSE":
         commit(store, message.membership);
         proposer.cancel();
+        syncAfterMembershipChange();
         notifyIfJoined();
+        handleSelfRemoval();
         break;
       case "MEMBERSHIP_REQUEST":
         if (joined) acceptor.onMembershipRequest(message);
         break;
       case "MEMBERSHIP_RESPONSE":
         commit(store, message.membership);
+        syncAfterMembershipChange();
         notifyIfJoined();
+        handleSelfRemoval();
         break;
       case "HEARTBEAT":
         if (!joined) break;
-        touchPresence(presence.fromHeartbeat(message));
+        onPeerHeartbeat(message);
         break;
       default:
         break;
@@ -216,7 +313,20 @@ export const createMembership = (
     });
   };
 
-  if (joined) startHeartbeat();
+  const leave = () => {
+    if (joined) {
+      outbound({ type: "LEAVE", clientId });
+    }
+    clearFoundingTimer();
+    stopHeartbeat();
+    proposer.cancel();
+    joined = false;
+  };
+
+  if (joined) {
+    liveness.seed(initialMembers);
+    startHeartbeat();
+  }
 
   return {
     clientId,
@@ -224,6 +334,7 @@ export const createMembership = (
     onMessage: handle,
     requestJoin,
     requestMembership,
+    leave,
     cancel: () => {
       clearFoundingTimer();
       stopHeartbeat();

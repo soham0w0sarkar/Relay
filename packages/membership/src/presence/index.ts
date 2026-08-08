@@ -11,3 +11,11 @@ export {
   type PresenceTracker,
   type PresenceTrackerOptions,
 } from "./presence";
+export {
+  createLivenessTracker,
+  type LivenessEntry,
+  type LivenessStatus,
+  type LivenessSweep,
+  type LivenessTracker,
+  type LivenessTrackerOptions,
+} from "./liveness";

@@ -31,7 +31,7 @@ describe("Ballot", () => {
   test("equal epoch — lexicographically lower proposer is stronger", () => {
     const a = createBallot(5, ALICE);
     const b = createBallot(5, BOB);
-    // ALICE < BOB as strings → ALICE ballot compares greater
+
     expect(compareBallot(a, b)).toBeGreaterThan(0);
     expect(compareBallot(b, a)).toBeLessThan(0);
   });
