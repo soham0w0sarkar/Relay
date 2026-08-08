@@ -11,6 +11,7 @@ import {
 type ClientId = string;
 
 const CLIENT_ID_KEY = "weavo:demo:client-id";
+const DISPLAY_NAME_KEY = "weavo:demo:display-name";
 const snapshotKey = (roomId: string, clientId: ClientId) =>
   `weavo:demo:${roomId}:snapshot:${clientId}`;
 const deltaKey = (roomId: string, clientId: ClientId) =>
@@ -49,6 +50,38 @@ export function getOrCreateClientId(): ClientId {
   const clientId = newClientId();
   sessionStorage.setItem(CLIENT_ID_KEY, clientId);
   return clientId;
+}
+
+const NAME_POOL = [
+  "Wren",
+  "Otter",
+  "Lark",
+  "Fable",
+  "Moss",
+  "Ember",
+  "Pip",
+  "Nimbus",
+  "Juniper",
+  "Sable",
+  "Comet",
+  "Fern",
+];
+
+/** One display name per browser tab, matching the client id lifetime. */
+export function getOrCreateDisplayName(): string {
+  const generate = () => {
+    const word = NAME_POOL[Math.floor(Math.random() * NAME_POOL.length)];
+    return `${word}-${Math.floor(Math.random() * 90 + 10)}`;
+  };
+
+  if (typeof sessionStorage === "undefined") return generate();
+
+  const existing = sessionStorage.getItem(DISPLAY_NAME_KEY);
+  if (existing) return existing;
+
+  const name = generate();
+  sessionStorage.setItem(DISPLAY_NAME_KEY, name);
+  return name;
 }
 
 export function loadClientStorage(

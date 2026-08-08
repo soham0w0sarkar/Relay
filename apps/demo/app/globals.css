@@ -53,26 +53,114 @@ button {
   touch-action: manipulation;
 }
 
-.editor-textarea {
-  width: 100%;
-  min-height: 18rem;
+/* The mirror must lay text out exactly like the textarea to place carets. */
+.editor-textarea,
+.cursor-mirror {
   padding: 1rem 1.125rem;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
   font: inherit;
   font-size: 1rem;
   line-height: 1.6;
   letter-spacing: -0.01em;
+}
+
+.editor-textarea {
+  width: 100%;
+  min-height: 18rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
   resize: vertical;
   background: var(--surface);
   color: var(--foreground);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .editor-shell {
+  width: 100%;
+}
+
+.editor-canvas {
   position: relative;
   width: 100%;
+}
+
+.cursor-layer {
+  position: absolute;
+  inset: 1px;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  pointer-events: none;
+}
+
+.cursor-layer-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.cursor-mirror {
+  margin: 0;
+  border: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  visibility: hidden;
+}
+
+.remote-caret {
+  position: absolute;
+  width: 2px;
+  border-radius: 1px;
+}
+
+.remote-caret-label {
+  position: absolute;
+  bottom: 100%;
+  left: -1px;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.25rem 0.25rem 0.25rem 0;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.remote-caret-label-below {
+  top: 100%;
+  bottom: auto;
+  border-radius: 0 0.25rem 0.25rem 0.25rem;
+}
+
+.presence-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.presence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.presence-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .editor-textarea:read-only {
@@ -133,6 +221,14 @@ button {
     min-height: calc(100dvh - 10.5rem);
     max-height: none;
     border-radius: 0.625rem;
+  }
+
+  .editor-textarea,
+  .cursor-mirror {
     padding: 0.875rem 1rem;
+  }
+
+  .cursor-layer {
+    border-radius: 0.625rem;
   }
 }
