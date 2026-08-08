@@ -1,13 +1,37 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f5f6f8;
+  --paper-deep: #e8eaee;
+  --surface: #ffffff;
+  --ink: #12141a;
+  --ink-soft: #3a3f4b;
+  --muted: #6b7280;
+  --line: #d5d9e0;
+  --accent: #0f766e;
+  --accent-deep: #115e59;
+  --code-bg: #151821;
+  --code-fg: #e8edf5;
+  --touch: 2.75rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --paper: #0d0f14;
+    --paper-deep: #08090c;
+    --surface: #151821;
+    --ink: #eef1f6;
+    --ink-soft: #c3c9d4;
+    --muted: #8b93a3;
+    --line: #2a3040;
+    --accent: #2dd4bf;
+    --accent-deep: #5eead4;
+    --code-bg: #08090c;
+    --code-fg: #e8edf5;
   }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html,
@@ -17,34 +41,29 @@ body {
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
 
 a {
-  color: inherit;
-  text-decoration: none;
+  color: var(--accent-deep);
 }
 
-.imgDark {
-  display: none;
+code,
+pre {
+  font-family: var(--font-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-
-  .imgLight {
-    display: none;
-  }
-  .imgDark {
-    display: unset;
-  }
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
 }
