@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
+import logo from "../public/logo.png";
 import styles from "./prose.module.css";
 
 export default function HomePage() {
   return (
     <div className={styles.hero}>
       <div className={styles.brandMark}>
-        <Image src="/logo.png" alt="" width={56} height={56} priority />
+        <Image src={logo} alt="" width={56} height={56} priority />
         <h1 className={styles.brandName}>Weavo</h1>
       </div>
       <p className={styles.lede}>

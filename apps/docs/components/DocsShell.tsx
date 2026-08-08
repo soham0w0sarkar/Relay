@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { NAV } from "../lib/nav";
+import logo from "../public/logo.png";
 import styles from "./DocsShell.module.css";
 
 export function DocsShell({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,7 @@ export function DocsShell({ children }: { children: React.ReactNode }) {
       <div className={styles.atmosphere} aria-hidden />
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand} onClick={() => setOpen(false)}>
-          <Image src="/logo.png" alt="" width={36} height={36} priority />
+          <Image src={logo} alt="" width={36} height={36} priority />
           <span>Weavo</span>
         </Link>
         <button
