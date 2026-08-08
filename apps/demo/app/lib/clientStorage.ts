@@ -23,16 +23,36 @@ export type ClientStorage = {
   delta: Operation[];
 };
 
-export const DISPLAY_COLORS = [
-  "#0f766e",
-  "#c2410c",
-  "#1d4ed8",
-  "#a16207",
-  "#b91c1c",
-  "#15803d",
-  "#0e7490",
-  "#44403c",
-] as const;
+export type ColorOption = { name: string; value: string };
+
+export const DISPLAY_COLORS: readonly ColorOption[] = [
+  { name: "Teal", value: "#0f766e" },
+  { name: "Orange", value: "#c2410c" },
+  { name: "Blue", value: "#1d4ed8" },
+  { name: "Amber", value: "#a16207" },
+  { name: "Red", value: "#b91c1c" },
+  { name: "Green", value: "#15803d" },
+  { name: "Cyan", value: "#0e7490" },
+  { name: "Graphite", value: "#44403c" },
+];
+
+const HEX_PATTERN = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/** Accepts #rgb or #rrggbb, with or without the hash. Returns lowercase #rrggbb. */
+export function normalizeHexColor(input: string): string | null {
+  const match = HEX_PATTERN.exec(input.trim());
+  if (!match) return null;
+
+  const hex = match[1]!.toLowerCase();
+  const full =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : hex;
+  return `#${full}`;
+}
 
 const newClientId = (): ClientId => crypto.randomUUID();
 
@@ -85,7 +105,7 @@ const generateDisplayName = () => {
 };
 
 const generateDisplayColor = () =>
-  DISPLAY_COLORS[Math.floor(Math.random() * DISPLAY_COLORS.length)]!;
+  DISPLAY_COLORS[Math.floor(Math.random() * DISPLAY_COLORS.length)]!.value;
 
 /** One display name per browser tab, matching the client id lifetime. */
 export function getOrCreateDisplayName(): string {
@@ -111,10 +131,9 @@ export function setDisplayName(name: string): string {
 export function getOrCreateDisplayColor(): string {
   if (typeof sessionStorage === "undefined") return generateDisplayColor();
 
-  const existing = sessionStorage.getItem(DISPLAY_COLOR_KEY);
-  if (existing && (DISPLAY_COLORS as readonly string[]).includes(existing)) {
-    return existing;
-  }
+  const stored = sessionStorage.getItem(DISPLAY_COLOR_KEY);
+  const existing = stored ? normalizeHexColor(stored) : null;
+  if (existing) return existing;
 
   const color = generateDisplayColor();
   sessionStorage.setItem(DISPLAY_COLOR_KEY, color);
@@ -122,9 +141,7 @@ export function getOrCreateDisplayColor(): string {
 }
 
 export function setDisplayColor(color: string): string {
-  const next = (DISPLAY_COLORS as readonly string[]).includes(color)
-    ? color
-    : generateDisplayColor();
+  const next = normalizeHexColor(color) ?? getOrCreateDisplayColor();
   if (typeof sessionStorage !== "undefined") {
     sessionStorage.setItem(DISPLAY_COLOR_KEY, next);
   }
