@@ -96,7 +96,6 @@ export const seedText = (el: HTMLTextAreaElement, text: string) => {
   insertText(el, text);
 };
 
-/** Browsers delete a whole grapheme cluster, not a single UTF-16 unit. */
 const graphemeLengthBefore = (value: string, caret: number): number => {
   const head = value.slice(0, caret);
   if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
@@ -152,7 +151,6 @@ export const deleteForward = (el: HTMLTextAreaElement) => {
   dispatchInput(el, "deleteContentForward", null);
 };
 
-/** Deletes the word before the caret (Option/Ctrl+Backspace). */
 export const deleteWordBackward = (el: HTMLTextAreaElement) => {
   const caret = el.selectionStart;
   if (caret === 0) return;
@@ -176,7 +174,6 @@ export const deleteWordBackward = (el: HTMLTextAreaElement) => {
   dispatchInput(el, "deleteWordBackward", null);
 };
 
-/** Deletes from the caret to the start of the line (Cmd+Backspace). */
 export const deleteLineBackward = (el: HTMLTextAreaElement) => {
   const caret = el.selectionStart;
   const lineStart = el.value.lastIndexOf("\n", caret - 1) + 1;
@@ -193,11 +190,6 @@ export const deleteLineBackward = (el: HTMLTextAreaElement) => {
   dispatchInput(el, "deleteHardLineBackward", null);
 };
 
-/**
- * Drives an IME the way a browser does: compositionstart, one input event per
- * candidate stage (each replacing the composing region), then compositionend.
- * The last stage is what gets committed.
- */
 export const composeText = (el: HTMLTextAreaElement, stages: string[]) => {
   const start = el.selectionStart;
   const end = el.selectionEnd;

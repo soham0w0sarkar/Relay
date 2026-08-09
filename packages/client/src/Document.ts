@@ -29,7 +29,7 @@ import {
 } from "./inputSnapshot";
 import { textChangeFromDiff, toTextChange } from "./textChange";
 import { manageTransport } from "./transport";
-import type { TextChange } from "./types";
+import type { CompositionState, TextChange } from "./types";
 
 export type WeavoOptions = {
   clientId?: ClientId;
@@ -131,22 +131,7 @@ export const createWeavo = (
 
   let before: InputSnapshot | null = null;
   let pendingInput = false;
-
-  /**
-   * An IME rewrites the composing region on every keystroke, so ops are held
-   * back until compositionend. `value`/`start`/`end` describe the region in the
-   * textarea when composition began; `docStart`/`docEnd` track the same region
-   * in document coordinates, since remote ops keep arriving while composing.
-   */
-  type Composition = {
-    value: string;
-    start: number;
-    end: number;
-    docStart: number;
-    docEnd: number;
-  };
-
-  let composition: Composition | null = null;
+  let composition: CompositionState | null = null;
 
   const emitChange = (change: TextChange) => subscription.emit(change);
 
@@ -170,8 +155,6 @@ export const createWeavo = (
   const onApplied = (op: Operation, index: number) => {
     notifyOp(op);
 
-    // Writing to the textarea mid-composition cancels the IME, so only shift
-    // the composing region and let compositionend reconcile the text.
     if (composition) {
       const change = toTextChange(op, index);
       composition.docStart = transformPosition(composition.docStart, change);
@@ -199,13 +182,6 @@ export const createWeavo = (
     });
   };
 
-  /**
-   * Every delete input type — a caret backspace, Option/Ctrl+Backspace by word,
-   * Cmd+Backspace by line, cut — removes a span the browser has already applied
-   * to the textarea. `before` is kept aligned with remote edits, so diffing it
-   * against the current value yields exactly the local deletion, whatever its
-   * length or grapheme boundaries. Returns null when nothing was removed.
-   */
   const resolveDelete = (
     snapshot: InputSnapshot,
     currentValue: string,
@@ -219,12 +195,10 @@ export const createWeavo = (
     };
   };
 
-  const commitComposition = (comp: Composition) => {
+  const commitComposition = (comp: CompositionState) => {
     const el = boundEl;
     if (!el) return;
 
-    // The textarea still holds the pre-composition text around the region,
-    // since remote writes were withheld, so the tail length is unchanged.
     const tailLength = comp.value.length - comp.end;
     const composedEnd = Math.max(comp.start, el.value.length - tailLength);
     const composed = el.value.slice(comp.start, composedEnd);

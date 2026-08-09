@@ -10,4 +10,12 @@ export type TextChange = {
   delete?: number;
 };
 
+export type CompositionState = {
+  value: string;
+  start: number;
+  end: number;
+  docStart: number;
+  docEnd: number;
+};
+
 export type { OnApplied } from "@weavo/core";
