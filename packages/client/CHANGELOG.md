@@ -1,5 +1,11 @@
 # @weavo/client
 
+## 2.0.1
+
+### Patch Changes
+
+- Replace leftover `workspace:*` dependency on `@weavo/membership` so the package installs from npm.
+
 ## 2.0.0
 
 ### Major Changes
