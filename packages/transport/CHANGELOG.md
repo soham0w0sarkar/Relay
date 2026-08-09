@@ -1,5 +1,11 @@
 # @weavo/transport
 
+## 2.0.2
+
+### Patch Changes
+
+- Encode lone surrogates as WTF-8 so astral characters (emoji, ZWJ sequences) survive the wire. A CRDT node holds a single UTF-16 unit, so emoji arrive as unpaired surrogates that `TextEncoder` would otherwise replace with U+FFFD.
+
 ## 2.0.1
 
 ### Patch Changes

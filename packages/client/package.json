@@ -1,6 +1,6 @@
 {
   "name": "@weavo/client",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Real-time collaborative text editing for the browser — bind a textarea, connect to a WebSocket room, edits sync automatically.",
   "keywords": [
     "weavo",
@@ -48,7 +48,7 @@
     "@weavo/core": "^2.0.0",
     "@weavo/membership": "^1.0.0",
     "@weavo/sync": "^2.0.1",
-    "@weavo/transport": "^2.0.1"
+    "@weavo/transport": "^2.0.2"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.10.6",

@@ -96,13 +96,30 @@ export const seedText = (el: HTMLTextAreaElement, text: string) => {
   insertText(el, text);
 };
 
+/** Browsers delete a whole grapheme cluster, not a single UTF-16 unit. */
+const graphemeLengthBefore = (value: string, caret: number): number => {
+  const head = value.slice(0, caret);
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    const segmenter = new Intl.Segmenter(undefined, {
+      granularity: "grapheme",
+    });
+    let last = 1;
+    for (const { segment } of segmenter.segment(head)) last = segment.length;
+    return last;
+  }
+  const codePoint = head.codePointAt(head.length - 2);
+  return codePoint !== undefined && codePoint > 0xffff ? 2 : 1;
+};
+
 export const backspace = (el: HTMLTextAreaElement) => {
   const start = el.selectionStart;
   const end = el.selectionEnd;
   const hasSelection = end > start;
   if (!hasSelection && start === 0) return;
 
-  const deleteLen = hasSelection ? end - start : 1;
+  const deleteLen = hasSelection
+    ? end - start
+    : graphemeLengthBefore(el.value, start);
   const deleteStart = hasSelection ? start : start - deleteLen;
 
   el.dispatchEvent(
@@ -133,6 +150,78 @@ export const deleteForward = (el: HTMLTextAreaElement) => {
   moveCursor(el, start);
 
   dispatchInput(el, "deleteContentForward", null);
+};
+
+/** Deletes the word before the caret (Option/Ctrl+Backspace). */
+export const deleteWordBackward = (el: HTMLTextAreaElement) => {
+  const caret = el.selectionStart;
+  if (caret === 0) return;
+
+  const isSpace = (char: string) => /\s/u.test(char);
+  const chars = [...el.value.slice(0, caret)];
+  let index = chars.length;
+  while (index > 0 && isSpace(chars[index - 1]!)) index--;
+  while (index > 0 && !isSpace(chars[index - 1]!)) index--;
+  const deleteStart = chars.slice(0, index).join("").length;
+  if (deleteStart === caret) return;
+
+  el.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }),
+  );
+  dispatchBeforeInput(el, "deleteWordBackward", null);
+
+  el.value = el.value.slice(0, deleteStart) + el.value.slice(caret);
+  setCursor(el, deleteStart);
+
+  dispatchInput(el, "deleteWordBackward", null);
+};
+
+/** Deletes from the caret to the start of the line (Cmd+Backspace). */
+export const deleteLineBackward = (el: HTMLTextAreaElement) => {
+  const caret = el.selectionStart;
+  const lineStart = el.value.lastIndexOf("\n", caret - 1) + 1;
+  if (lineStart === caret) return;
+
+  el.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }),
+  );
+  dispatchBeforeInput(el, "deleteHardLineBackward", null);
+
+  el.value = el.value.slice(0, lineStart) + el.value.slice(caret);
+  setCursor(el, lineStart);
+
+  dispatchInput(el, "deleteHardLineBackward", null);
+};
+
+/**
+ * Drives an IME the way a browser does: compositionstart, one input event per
+ * candidate stage (each replacing the composing region), then compositionend.
+ * The last stage is what gets committed.
+ */
+export const composeText = (el: HTMLTextAreaElement, stages: string[]) => {
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const head = el.value.slice(0, start);
+  const tail = el.value.slice(end);
+
+  el.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+
+  for (const stage of stages) {
+    el.value = head + stage + tail;
+    setCursor(el, start + stage.length);
+    el.dispatchEvent(
+      new CompositionEvent("compositionupdate", { bubbles: true }),
+    );
+    el.dispatchEvent(
+      new InputEvent("input", {
+        bubbles: true,
+        inputType: "insertCompositionText",
+        data: stage,
+      }),
+    );
+  }
+
+  el.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
 };
 
 export type Peer = {

@@ -1,5 +1,14 @@
 # @weavo/client
 
+## 2.0.2
+
+### Patch Changes
+
+- Support IME composition: hold ops until `compositionend` and commit the final candidate once, so Chinese/Japanese/Korean input and emoji pickers sync correctly.
+- Delete whole graphemes, words, and lines. Every delete now mirrors the span the browser removed from the textarea, so emoji, ZWJ sequences, Option/Ctrl+Backspace, and Cmd+Backspace no longer leave broken half-characters.
+- Updated dependencies
+  - @weavo/transport@2.0.2
+
 ## 2.0.1
 
 ### Patch Changes

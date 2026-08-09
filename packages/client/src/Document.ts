@@ -132,6 +132,22 @@ export const createWeavo = (
   let before: InputSnapshot | null = null;
   let pendingInput = false;
 
+  /**
+   * An IME rewrites the composing region on every keystroke, so ops are held
+   * back until compositionend. `value`/`start`/`end` describe the region in the
+   * textarea when composition began; `docStart`/`docEnd` track the same region
+   * in document coordinates, since remote ops keep arriving while composing.
+   */
+  type Composition = {
+    value: string;
+    start: number;
+    end: number;
+    docStart: number;
+    docEnd: number;
+  };
+
+  let composition: Composition | null = null;
+
   const emitChange = (change: TextChange) => subscription.emit(change);
 
   const applyRemoteToBound = (prevText: string, newText: string) => {
@@ -151,8 +167,19 @@ export const createWeavo = (
 
   const notifyOp = (op: Operation) => options.onOp?.(op);
 
-  const onApplied = (op: Operation, _index: number) => {
+  const onApplied = (op: Operation, index: number) => {
     notifyOp(op);
+
+    // Writing to the textarea mid-composition cancels the IME, so only shift
+    // the composing region and let compositionend reconcile the text.
+    if (composition) {
+      const change = toTextChange(op, index);
+      composition.docStart = transformPosition(composition.docStart, change);
+      composition.docEnd = transformPosition(composition.docEnd, change);
+      emitChange(change);
+      return;
+    }
+
     const prevText = boundEl?.value ?? "";
     applyRemoteToBound(prevText, getText(doc.store));
   };
@@ -170,6 +197,47 @@ export const createWeavo = (
       emitChange(toTextChange(op, index));
       transport.send({ type: "op", op });
     });
+  };
+
+  /**
+   * Every delete input type — a caret backspace, Option/Ctrl+Backspace by word,
+   * Cmd+Backspace by line, cut — removes a span the browser has already applied
+   * to the textarea. `before` is kept aligned with remote edits, so diffing it
+   * against the current value yields exactly the local deletion, whatever its
+   * length or grapheme boundaries. Returns null when nothing was removed.
+   */
+  const resolveDelete = (
+    snapshot: InputSnapshot,
+    currentValue: string,
+  ): InputSnapshot | null => {
+    const removed = textChangeFromDiff(snapshot.value, currentValue);
+    if (!removed || !removed.delete) return null;
+    return {
+      start: removed.index,
+      end: removed.index + removed.delete,
+      value: snapshot.value,
+    };
+  };
+
+  const commitComposition = (comp: Composition) => {
+    const el = boundEl;
+    if (!el) return;
+
+    // The textarea still holds the pre-composition text around the region,
+    // since remote writes were withheld, so the tail length is unchanged.
+    const tailLength = comp.value.length - comp.end;
+    const composedEnd = Math.max(comp.start, el.value.length - tailLength);
+    const composed = el.value.slice(comp.start, composedEnd);
+
+    if (composed.length > 0 || comp.docEnd > comp.docStart) {
+      processLocalInput(
+        new InputEvent("input", { inputType: "insertText", data: composed }),
+        { start: comp.docStart, end: comp.docEnd, value: getText(doc.store) },
+      );
+    }
+
+    applyRemoteToBound(el.value, getText(doc.store));
+    before = captureSnapshot(el);
   };
 
   manageTransport(transport, doc, sv, buffer, onApplied, membership);
@@ -197,6 +265,7 @@ export const createWeavo = (
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (composition) return;
       if (event.key === "Backspace" || event.key === "Delete") {
         before = captureSnapshot(el);
         pendingInput = true;
@@ -208,13 +277,31 @@ export const createWeavo = (
         event.preventDefault();
         return;
       }
+      if (composition) return;
       before = captureSnapshot(event.target as HTMLTextAreaElement);
       pendingInput = true;
     };
 
     const onInput = (event: Event) => {
       const inputEvent = event as InputEvent;
+      if (composition || inputEvent.inputType === "insertCompositionText") {
+        return;
+      }
       if (!before) return;
+
+      if (inputEvent.inputType.startsWith("delete")) {
+        const range = resolveDelete(before, el.value);
+        if (range) {
+          processLocalInput(
+            new InputEvent("input", { inputType: "deleteContentForward" }),
+            range,
+          );
+        }
+        before = captureSnapshot(el);
+        pendingInput = false;
+        return;
+      }
+
       const snapshot = reconcileBefore(
         before,
         el.value,
@@ -226,14 +313,34 @@ export const createWeavo = (
       pendingInput = false;
     };
 
+    const onCompositionStart = () => {
+      if (!membership.isJoined()) return;
+      composition = {
+        value: el.value,
+        start: el.selectionStart,
+        end: el.selectionEnd,
+        docStart: el.selectionStart,
+        docEnd: el.selectionEnd,
+      };
+      pendingInput = false;
+    };
+
+    const onCompositionEnd = () => {
+      const comp = composition;
+      composition = null;
+      if (comp) commitComposition(comp);
+    };
+
     const refreshSnapshot = () => {
-      if (pendingInput) return;
+      if (pendingInput || composition) return;
       before = captureSnapshot(el);
     };
 
     el.addEventListener("keydown", onKeyDown, true);
     el.addEventListener("beforeinput", onBeforeInput);
     el.addEventListener("input", onInput);
+    el.addEventListener("compositionstart", onCompositionStart);
+    el.addEventListener("compositionend", onCompositionEnd);
     el.addEventListener("click", refreshSnapshot);
     el.addEventListener("select", refreshSnapshot);
     el.addEventListener("keyup", refreshSnapshot);
@@ -243,10 +350,13 @@ export const createWeavo = (
       el.removeEventListener("keydown", onKeyDown, true);
       el.removeEventListener("beforeinput", onBeforeInput);
       el.removeEventListener("input", onInput);
+      el.removeEventListener("compositionstart", onCompositionStart);
+      el.removeEventListener("compositionend", onCompositionEnd);
       el.removeEventListener("click", refreshSnapshot);
       el.removeEventListener("select", refreshSnapshot);
       el.removeEventListener("keyup", refreshSnapshot);
       if (boundEl === el) boundEl = null;
+      composition = null;
     };
   };
 
