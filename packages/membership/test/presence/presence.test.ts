@@ -16,12 +16,14 @@ const entry = (
   clientId: ClientId,
   timestamp: number,
   cursor = 0,
+  receivedAt = timestamp,
 ): PresenceEntry => ({
   clientId,
   cursor,
   name: clientId.slice(0, 4),
   color: "#f00",
   timestamp,
+  receivedAt,
   membershipVersion: 1,
   sv: { [clientId]: 1 },
 });
@@ -59,6 +61,15 @@ describe("presence LWW", () => {
     expect(evictStale(presence, 10_000, 11_000)).toEqual([ALICE]);
     expect(presence.has(ALICE)).toBe(false);
     expect(presence.has(BOB)).toBe(true);
+  });
+
+  test("staleness ignores the sender's clock", () => {
+    const presence = createPresence();
+    updatePresence(presence, entry(ALICE, -600_000, 1, 10_500));
+    updatePresence(presence, entry(BOB, 900_000, 2, 500));
+
+    expect(evictStale(presence, 10_000, 11_000)).toEqual([BOB]);
+    expect(presence.has(ALICE)).toBe(true);
   });
 });
 

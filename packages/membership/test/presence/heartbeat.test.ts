@@ -90,4 +90,62 @@ describe("createMembership presence", () => {
     expect(alice.getPresence().has(BOB)).toBe(false);
     alice.cancel();
   });
+
+  test("keeps a peer whose clock runs far behind ours", () => {
+    jest.setSystemTime(1_000_000);
+    const bus: MembershipMessage[] = [];
+    const alice = createMembership((msg) => bus.push(msg), {
+      clientId: ALICE,
+      initialMembers: [ALICE, BOB],
+      heartbeatIntervalMs: 0,
+      presenceTimeoutMs: 10_000,
+      removalTimeoutMs: 30_000,
+    });
+
+    alice.onMessage({
+      type: "HEARTBEAT",
+      clientId: BOB,
+      membershipVersion: 0,
+      timestamp: 940_000,
+      presence: { cursor: 5, name: "bob", color: "#222" },
+      sv: {},
+    });
+
+    expect(alice.getPresence().get(BOB)?.cursor).toBe(5);
+    expect(bus.filter((m) => m.type === "PREPARE")).toHaveLength(0);
+
+    alice.cancel();
+  });
+
+  test("keeps a peer whose clock runs far ahead of ours", () => {
+    jest.setSystemTime(1_000_000);
+    const alice = createMembership(() => {}, {
+      clientId: ALICE,
+      initialMembers: [ALICE, BOB],
+      heartbeatIntervalMs: 0,
+      presenceTimeoutMs: 10_000,
+    });
+
+    alice.onMessage({
+      type: "HEARTBEAT",
+      clientId: BOB,
+      membershipVersion: 0,
+      timestamp: 1_060_000,
+      presence: { cursor: 7, name: "bob", color: "#222" },
+      sv: {},
+    });
+
+    jest.setSystemTime(1_005_000);
+    alice.onMessage({
+      type: "HEARTBEAT",
+      clientId: BOB,
+      membershipVersion: 0,
+      timestamp: 1_065_000,
+      presence: { cursor: 8, name: "bob", color: "#222" },
+      sv: {},
+    });
+
+    expect(alice.getPresence().get(BOB)?.cursor).toBe(8);
+    alice.cancel();
+  });
 });

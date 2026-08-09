@@ -7,6 +7,7 @@ export type PresenceEntry = {
   name: string;
   color: string;
   timestamp: number;
+  receivedAt: number;
   membershipVersion: number;
   sv: Record<string, number>;
 };
@@ -72,7 +73,7 @@ export const evictStale = (
 ): ClientId[] => {
   const evicted: ClientId[] = [];
   for (const [clientId, entry] of presence) {
-    if (now - entry.timestamp >= timeoutMs) {
+    if (now - entry.receivedAt >= timeoutMs) {
       presence.delete(clientId);
       evicted.push(clientId);
     }
@@ -110,7 +111,7 @@ export const createPresenceTracker = (
     merge: (other) => {
       let changed = false;
       for (const entry of other.values()) {
-        if (update(entry)) changed = true;
+        if (update({ ...entry, receivedAt: now() })) changed = true;
       }
       return changed;
     },
@@ -124,6 +125,7 @@ export const createPresenceTracker = (
         name: input.presence.name,
         color: input.presence.color,
         timestamp: input.timestamp,
+        receivedAt: now(),
         membershipVersion: input.membershipVersion,
         sv: input.sv,
       }),

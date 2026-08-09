@@ -146,7 +146,7 @@ export const createMembership = (
     message: Extract<MembershipMessage, { type: "HEARTBEAT" }>,
   ) => {
     const changed = presence.fromHeartbeat(message);
-    liveness.touch(message.clientId, message.timestamp);
+    liveness.touch(message.clientId);
     proposer.revive(message.clientId);
     if (changed) notifyPresence();
     applyLivenessSweep();
