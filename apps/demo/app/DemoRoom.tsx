@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { WeavoTextarea } from "./WeavoTextarea";
 import { IdentityPicker } from "./IdentityPicker";
 import { buildWeavoRoomUrl } from "./lib/weavoUrl";
@@ -204,8 +204,13 @@ export function DemoRoom() {
     );
   }
 
+  // Your identity color washes over the room: caret, selection, focus, glow.
+  const tint = displayColor
+    ? ({ "--user-tint": displayColor } as CSSProperties)
+    : undefined;
+
   return (
-    <div className={styles.session}>
+    <div className={styles.session} style={tint}>
       <div className={styles.toolbar}>
         <div className={styles.toolbarDesktop}>
           <code className={styles.roomId} title={roomId}>

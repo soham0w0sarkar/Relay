@@ -143,7 +143,14 @@ export function WeavoTextarea({
       {peers.length > 0 ? (
         <div className="presence-bar" aria-label="People in this room">
           {peers.map((peer) => (
-            <span key={peer.clientId} className="presence-chip">
+            <span
+              key={peer.clientId}
+              className={
+                peer.clientId === selfId
+                  ? "presence-chip presence-chip-self"
+                  : "presence-chip"
+              }
+            >
               <span
                 className="presence-dot"
                 style={{ background: peer.color }}
