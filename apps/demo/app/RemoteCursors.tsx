@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { PeerPresence } from "@weavo/client";
+import { readableTextColor } from "./lib/clientStorage";
 
 type Caret = {
   clientId: string;
@@ -105,7 +106,10 @@ export function RemoteCursors({
                   ? "remote-caret-label remote-caret-label-below"
                   : "remote-caret-label"
               }
-              style={{ background: caret.color }}
+              style={{
+                background: caret.color,
+                color: readableTextColor(caret.color),
+              }}
             >
               {caret.name}
             </span>

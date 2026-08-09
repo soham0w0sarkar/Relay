@@ -26,14 +26,14 @@ export type ClientStorage = {
 export type ColorOption = { name: string; value: string };
 
 export const DISPLAY_COLORS: readonly ColorOption[] = [
-  { name: "Teal", value: "#0f766e" },
-  { name: "Orange", value: "#c2410c" },
-  { name: "Blue", value: "#1d4ed8" },
-  { name: "Amber", value: "#a16207" },
-  { name: "Red", value: "#b91c1c" },
-  { name: "Green", value: "#15803d" },
-  { name: "Cyan", value: "#0e7490" },
-  { name: "Graphite", value: "#44403c" },
+  { name: "Violet", value: "#7c3aed" },
+  { name: "Indigo", value: "#4f46e5" },
+  { name: "Blue", value: "#2563eb" },
+  { name: "Cyan", value: "#0891b2" },
+  { name: "Emerald", value: "#059669" },
+  { name: "Orange", value: "#ea580c" },
+  { name: "Rose", value: "#e11d48" },
+  { name: "Fuchsia", value: "#c026d3" },
 ];
 
 const HEX_PATTERN = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -52,6 +52,23 @@ export function normalizeHexColor(input: string): string | null {
           .join("")
       : hex;
   return `#${full}`;
+}
+
+const LABEL_INK = "#111827";
+
+/** Picks whichever label color reads better on top of a swatch. */
+export function readableTextColor(background: string): string {
+  const hex = normalizeHexColor(background);
+  if (!hex) return "#ffffff";
+
+  const channel = (offset: number) => {
+    const srgb = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance =
+    0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+
+  return luminance > 0.2 ? LABEL_INK : "#ffffff";
 }
 
 const newClientId = (): ClientId => crypto.randomUUID();
