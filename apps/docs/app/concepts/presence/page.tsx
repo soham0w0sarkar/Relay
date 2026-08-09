@@ -20,8 +20,9 @@ export default function PresencePage() {
 
       <h2 className={styles.h2}>Presence is ephemeral</h2>
       <p className={styles.p}>
-        After join, peers broadcast <code className={styles.inlineCode}>HEARTBEAT</code>{" "}
-        (~2s) with <code className={styles.inlineCode}>{`{ cursor, name, color }`}</code>,
+        After join, peers broadcast{" "}
+        <code className={styles.inlineCode}>HEARTBEAT</code> (~2s) with{" "}
+        <code className={styles.inlineCode}>{`{ cursor, name, color }`}</code>,
         plus piggybacked membership version and state vector. Receivers keep the
         higher timestamp (LWW). Miss ~10s and the peer drops from the local
         presence map — cursors disappear from the UI.
@@ -45,9 +46,9 @@ weavo.setIdentity({ name: "Ada", color: "#0f766e" });`}</code>
           <code>removeMember</code>.
         </li>
         <li>
-          <strong>Ungraceful</strong> — silence → suspect (~10s) → propose remove
-          (~30s from lastSeen). A heartbeat before <code>COMMIT</code> cancels
-          the removal. After commit, a returning peer rejoins with{" "}
+          <strong>Ungraceful</strong> — silence → suspect (~10s) → propose
+          remove (~30s from lastSeen). A heartbeat before <code>COMMIT</code>{" "}
+          cancels the removal. After commit, a returning peer rejoins with{" "}
           <code>JOIN_REQUEST</code>.
         </li>
       </ul>
