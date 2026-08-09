@@ -35,9 +35,11 @@ while [ $# -gt 0 ]; do
   fi
 
   pkg_json="packages/${pkg}/package.json"
-  pkg_version=$(node -p "require('./$pkg_json').version")
+  # CI builds from the tagged commit, so check that rather than the working tree.
+  pkg_version=$(git show "HEAD:$pkg_json" | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")
   if [ "$pkg_version" != "$version" ]; then
-    echo "Version mismatch for @weavo/${pkg}: package.json has ${pkg_version}, tag requests ${version}" >&2
+    echo "Version mismatch for @weavo/${pkg}: HEAD has ${pkg_version}, tag requests ${version}" >&2
+    echo "Commit the version bump before tagging." >&2
     exit 1
   fi
 

@@ -1,5 +1,13 @@
 # demo
 
+## 0.1.9
+
+### Patch Changes
+
+- Updated dependencies
+  - @weavo/client@2.0.0
+  - @weavo/transport@2.0.0
+
 ## 0.1.6
 
 ### Patch Changes

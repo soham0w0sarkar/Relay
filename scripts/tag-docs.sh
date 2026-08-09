@@ -10,9 +10,11 @@ fi
 
 version="${version#v}"
 docs_json="apps/docs/package.json"
-docs_version=$(node -p "require('./$docs_json').version")
+# CI builds from the tagged commit, so check that rather than the working tree.
+docs_version=$(git show "HEAD:$docs_json" | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")
 if [ "$docs_version" != "$version" ]; then
-  echo "Version mismatch: apps/docs/package.json has ${docs_version}, tag requests ${version}" >&2
+  echo "Version mismatch: HEAD has ${docs_version}, tag requests ${version}" >&2
+  echo "Commit the version bump before tagging." >&2
   exit 1
 fi
 
