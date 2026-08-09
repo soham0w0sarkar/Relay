@@ -13,9 +13,13 @@ import {
 
 const CHECKPOINT_EVERY_OPS = 50;
 const HEARTBEAT_MS = 750;
-/** Demo-friendly: cursor drops fast; membership remove still waits for hiccups. */
-const PRESENCE_TIMEOUT_MS = 4_000;
-const REMOVAL_TIMEOUT_MS = 12_000;
+/**
+ * Cursors should drop quickly, but not so fast that a mobile network stall or a
+ * throttled free relay looks like someone leaving. Roughly ten missed
+ * heartbeats before the cursor goes, and longer still before membership does.
+ */
+const PRESENCE_TIMEOUT_MS = 8_000;
+const REMOVAL_TIMEOUT_MS = 20_000;
 
 const roomIdFromUrl = (weavoUrl: string) =>
   new URL(weavoUrl).searchParams.get("room") ?? "";
