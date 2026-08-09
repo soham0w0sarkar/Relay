@@ -14,13 +14,6 @@ const isHighSurrogate = (unit: number) =>
 const isLowSurrogate = (unit: number) =>
   unit >= LOW_START && unit <= SURROGATE_END;
 
-/**
- * A CRDT node holds a single UTF-16 code unit, so astral characters such as
- * emoji arrive here split into unpaired surrogates. TextEncoder replaces those
- * with U+FFFD, which loses the character, so encode them as WTF-8 instead:
- * standard UTF-8 for everything valid, plus 3-byte sequences for lone
- * surrogates.
- */
 const hasLoneSurrogate = (value: string): boolean => {
   for (let index = 0; index < value.length; index++) {
     const unit = value.charCodeAt(index);
