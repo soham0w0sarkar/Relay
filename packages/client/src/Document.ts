@@ -1,9 +1,11 @@
 import {
+  createGCTracker,
   createReplica,
   generateClientId,
   getText,
   onInput as localInput,
   restoreFromStorage,
+  runGC,
   takeSnapshot,
   type ClientId,
   type DocumentSnapshot,
@@ -42,6 +44,7 @@ export type WeavoOptions = {
   heartbeatIntervalMs?: number;
   presenceTimeoutMs?: number;
   removalTimeoutMs?: number;
+  gcGracePeriodMs?: number;
   initial?: {
     snapshot: DocumentSnapshot;
     delta?: Operation[];
@@ -128,6 +131,19 @@ export const createWeavo = (
       : {}),
   });
   const subscription = createSubscription();
+  const gcTracker = createGCTracker();
+  const gcGracePeriodMs =
+    options.gcGracePeriodMs ?? options.removalTimeoutMs ?? 30_000;
+
+  const sweepGC = () => {
+    runGC(doc.store, membership.computeGCFrontier(), gcTracker, {
+      gracePeriodMs: gcGracePeriodMs,
+    });
+  };
+
+  membership.onPresence(() => {
+    sweepGC();
+  });
 
   let before: InputSnapshot | null = null;
   let pendingInput = false;
