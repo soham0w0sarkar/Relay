@@ -39,13 +39,17 @@ Rough roadmap (more “what the last problem forced” than a product plan):
     ├─ Membership table + versioned store (UUID ↔ shortId)
     ├─ CASPaxos-style consensus (proposer / acceptor)
     ├─ JOIN_REQUEST → COMMIT → JOIN_RESPONSE join gate
-    ├─ Presence & liveness (next)
-    └─ GC frontier (after that)
+    ├─ Presence (LWW) + liveness (local-clock aging)
+    ├─ LEAVE / ungraceful remove on the same CASPaxos spine
+    └─ GC frontier (min of peer SVs from heartbeats)
 
 @weavo/client
     ├─ Textarea adapter + selection transform
+    ├─ IME composition + grapheme-aware deletes
     ├─ Membership join before ops / sync-request
     ├─ IdCodec wired from membership into transport
+    ├─ Presence / identity / disconnect(LEAVE)
+    ├─ Tombstone GC on heartbeat (frontier + grace)
     └─ Orchestrates sync + transport + membership
 
 apps/weavo-server
@@ -155,6 +159,8 @@ Suppression fixed _who_ answers. It didn’t shrink _what_ they send. A late joi
 | Membership (`JOIN_*`, `PREPARE`…`COMMIT`, …) | Binary subtype tags under `MSG_MEMBERSHIP`                    | Always full UUID — these frames _build_ the shortId table                      |
 | Persistence (snapshot + delta)               | Binary (`PERSIST_VERSION`), optional base64 for string stores | Always full UUID — shortIds are membership-version-local and must not hit disk |
 
+UTF-8 on the wire is WTF-8 when needed: a CRDT node holds one UTF-16 code unit, so astral characters (emoji) can arrive as lone surrogates. `TextEncoder` would replace those with U+FFFD; the codec keeps them round-trippable instead.
+
 Decode never fails on a membership version we don't have. A shortId we can't map stays in the operation as `~<version>:<shortId>` and `requestMembership(version)` goes out. Resolution is the applier's job, not the codec's: `canApply` refuses any op still carrying one, `addToBuffer` parks it in `waiting` under that version, and when the table lands `flushMembership` swaps the shortIds for real client ids and applies whatever unblocks.
 
 Outbound membership messages are applied locally _before_ broadcast so a joiner’s immediate `sync-request` can decode against the version the sender just committed.
@@ -249,23 +255,60 @@ Ballots are `(epoch, proposerId)`. Total order, no sequencer.
 
 ## Presence is not membership
 
-Presence is ephemeral: who is here right now, where their cursor is, what they call themselves. It is a last-write-wins map keyed by `clientId`. Every joined peer broadcasts a `HEARTBEAT` about every 2s carrying `{ cursor, name, color }`, plus piggybacked `membershipVersion` and `sv`. Receivers keep the entry with the higher timestamp. Miss ~10s of heartbeats and the peer drops out of the local presence map.
+Presence is ephemeral: who is here right now, where their cursor is, what they call themselves. It is a last-write-wins map keyed by `clientId`. Every joined peer broadcasts a `HEARTBEAT` (default ~2s; the demo uses 750ms) carrying `{ cursor, name, color }`, plus piggybacked `membershipVersion` and `sv`. Receivers keep the entry with the higher **sender** `timestamp`. Miss ~10s of heartbeats (defaults; demo loosens this for WAN) and the peer drops out of the local presence map.
 
 Wrong presence for a beat is a flicker. Wrong membership is a permanently corrupted document. Different stakes, different tools — LWW eventual consistency here, CASPaxos on the member set.
 
-`weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Leave is the durable path: graceful `LEAVE` or silence past the removal timeout proposes `removeMember` on the same prepare → accept → commit spine.
+### Two clocks, two jobs
+
+The heartbeat’s `timestamp` is the sender’s wall clock. That is fine for LWW: you only ever compare one peer’s updates against that same peer’s earlier updates, so skew between machines does not matter.
+
+It is **not** fine for “how long since I last heard from them.” Stamping `lastSeen` / presence age with the sender’s clock and then aging it against ours means any skew past the presence timeout makes every heartbeat arrive already expired. On a second machine the peer gets added to presence and swept straight back out in the same handler — cursor flickers or never shows. Two tabs on one laptop hide the bug; 100 km of real devices do not.
+
+Rule we landed on:
+
+| Field / path | Clock | Job |
+| ------------ | ----- | --- |
+| Heartbeat `timestamp` | Sender | Order that peer’s own presence writes (LWW) |
+| Liveness `lastSeen` | Local receive time | Suspect / remove after silence |
+| Presence `receivedAt` | Local receive time | Evict stale UI entries |
+
+`weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Cursor offsets only refresh when a heartbeat arrives, so remote carets step at the heartbeat interval unless something else transforms them. Leave is the durable path: graceful `LEAVE` or silence past the removal timeout proposes `removeMember` on the same prepare → accept → commit spine.
+
+Heartbeats are tiny (~40 B frames) but frequent. A two-peer demo session is a few messages per second and hundreds of bytes per second — not enough to create network latency. Perceived lag over distance is RTT through the relay and heartbeat cadence, not the bytes.
 
 ---
 
 ## Leave is durable membership change
 
-Presence drops a silent peer from the UI in ~10s. Membership waits longer (~30s from last heartbeat) before proposing removal — brief partitions should not rewrite the shortId table.
+Presence drops a silent peer from the UI after the presence timeout (default ~10s of **local** silence). Membership waits longer (default ~30s) before proposing removal — brief partitions should not rewrite the shortId table.
 
 **Graceful** — `weavo.disconnect()` broadcasts `LEAVE`, clears local presence, and peers propose `removeMember` immediately. No suspect window.
 
-**Ungraceful** — heartbeats stop → suspect at ~10s (cursor gone) → propose remove at ~30s → CASPaxos. A heartbeat before `COMMIT` cancels that removal (`revive`). After `COMMIT`, a returning peer sees it is absent and sends `JOIN_REQUEST`.
+**Ungraceful** — heartbeats stop → suspect at presence timeout (cursor gone) → propose remove at removal timeout → CASPaxos. A heartbeat before `COMMIT` cancels that removal (`revive`). After `COMMIT`, a returning peer sees it is absent and sends `JOIN_REQUEST`.
 
 Concurrent removals collide like concurrent joins: carry-forward picks one committed snapshot; the other defer to the next version. Quorum for a leave uses the post-removal size so a departing peer is not required to vote on its own exit.
+
+---
+
+## Tombstone GC rides the same heartbeats
+
+Deletes only flip `tombstone = true`. The node stays in `store.nodes` so later ops can still use it as a `leftOrigin` / `rightOrigin` anchor. Physical deletion is only safe once **every active peer** has seen far enough into that author's history.
+
+Heartbeats already carry each peer's state vector. The GC frontier is the per-`clientId` minimum across live peers (and our own current SV):
+
+```
+frontier[alice] = min(our alice clock, …each presence peer's alice clock)
+```
+
+Any tombstone whose insert clock is `≤ frontier[author]` is *eligible*. We still wait a grace period (default 30s, aligned with removal timeout) before unlinking it from the CRDT list and dropping it from the map — covers in-flight ops from peers who are still in presence. A peer who went silent drops out of presence at the suspect timeout, which unblocks the frontier without a dedicated GC protocol.
+
+Two local guards on top of the design:
+
+1. **Never GC a tombstone still referenced** as someone else's `leftOrigin` / `rightOrigin` in *our* store. Typing “ab” then deleting `a` leaves `b` pointing at `a`; removing `a` would break insert ancestry walks. Unreferenced tombstones (end of a deleted run) fall out over successive sweeps.
+2. **Self's presence entry is ignored** when computing the min — we always use the live SV so ops since the last heartbeat don't falsely hold the frontier back.
+
+Failure modes match presence: offline peer sticks the frontier until eviction; reconnect before removal re-enters the min; reconnect after membership remove is a fresh join (new shortId) and any stale-anchor ops land in the dependency buffer. Different peers may GC different prefixes; each run is locally safe and they converge.
 
 ---
 
@@ -279,9 +322,13 @@ For every new idea: **whose package?**
 | “I have clocks you don't”           | `@weavo/sync`       |
 | Wire + persistence serialization    | `@weavo/transport`  |
 | Member set / shortId table / commit | `@weavo/membership` |
-| Presence / liveness heartbeats      | `@weavo/membership` |
-| Forward bytes                       | relay               |
-| DOM textarea + selection            | `@weavo/client`     |
+| Presence / liveness heartbeats           | `@weavo/membership` |
+| Local clock for silence, sender for LWW  | `@weavo/membership` |
+| GC frontier from heartbeat SVs           | `@weavo/membership` |
+| Physical tombstone GC + grace            | `@weavo/core` + `@weavo/client` |
+| Forward bytes                            | relay               |
+| DOM textarea + selection + IME           | `@weavo/client`     |
+| WTF-8 for lone surrogates                | `@weavo/transport`  |
 
 ---
 
@@ -295,6 +342,8 @@ For every new idea: **whose package?**
 - ~~Late joiners who missed a `COMMIT` (ops wait in the buffer until their membership version arrives)~~
 - ~~Leave / remove on the same prepare → accept → commit spine~~
 - ~~Heartbeats for presence / failure detection once the set is stable~~
-- Tombstone GC once we can compute a frontier over live members (sv already rides on heartbeats)
+- ~~Age presence / liveness on local receive time (sender timestamp is LWW only)~~
+- ~~Tombstone GC once we can compute a frontier over live members (sv already rides on heartbeats)~~
+- Delete ops still lack their own clocks — frontier is insert-SV based; grace + unreferenced checks cover the live-delete race for now
 
 Each of those is probably another “oh, now we need…” — same pattern as how we got here.
