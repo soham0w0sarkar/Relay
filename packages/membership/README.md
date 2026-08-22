@@ -19,6 +19,7 @@ npm install @weavo/membership
 - **Heartbeats** — ~2s broadcast after join; carries presence plus piggybacked `membershipVersion` and state vector
 - **Liveness** — silent peers become suspect (~10s, presence dropped) then proposed for removal (~30s)
 - **Leave** — graceful `LEAVE` or ungraceful timeout → `removeMember` via the same consensus spine as join
+- **GC frontier** — min of peer state vectors from heartbeats; client runs tombstone GC after grace
 
 ```ts
 import { createMembership } from "@weavo/membership";
@@ -32,6 +33,8 @@ const membership = createMembership(send, {
 membership.onPresence((peers) => {
   // Map<ClientId, { clientId, cursor, name, color }>
 });
+
+const frontier = membership.computeGCFrontier();
 
 // Graceful exit — peers remove you via CASPaxos
 membership.leave();

@@ -9,6 +9,7 @@ import {
   getShortId,
 } from "./membershipStore";
 import {
+  computeGCFrontier,
   createLivenessTracker,
   createPresenceTracker,
   type PeerPresence,
@@ -362,6 +363,12 @@ export const createMembership = (
       };
     },
     getPresence: () => presence.snapshot(),
+    computeGCFrontier: () =>
+      computeGCFrontier(
+        getStateVector?.() ?? {},
+        presence.entries,
+        clientId,
+      ),
     onPresence: (listener) => {
       presenceListeners.add(listener);
       listener(presence.snapshot());

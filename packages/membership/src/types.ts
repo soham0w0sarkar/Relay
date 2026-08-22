@@ -1,7 +1,7 @@
 import type { ClientId } from "@weavo/core";
 import type { MembershipMessage, PresencePayload } from "./consesous/types";
 import type { Membership, MembershipStore } from "./membershipStore/types";
-import type { PeerPresence } from "./presence";
+import type { PeerPresence, GCFrontier } from "./presence";
 
 export type { Member, Membership, MembershipStore } from "./membershipStore/types";
 
@@ -23,6 +23,7 @@ export type {
 } from "./consesous/types";
 
 export type {
+  GCFrontier,
   LivenessEntry,
   LivenessStatus,
   LivenessSweep,
@@ -62,6 +63,7 @@ export type MembershipHandle = {
   isJoined: () => boolean;
   onJoined: (listener: (membership: Membership) => void) => () => void;
   getPresence: () => Map<ClientId, PeerPresence>;
+  computeGCFrontier: () => GCFrontier;
   onPresence: (
     listener: (presence: Map<ClientId, PeerPresence>) => void,
   ) => () => void;

@@ -12,6 +12,10 @@ export {
   type PresenceTrackerOptions,
 } from "./presence";
 export {
+  computeGCFrontier,
+  type GCFrontier,
+} from "./gcFrontier";
+export {
   createLivenessTracker,
   type LivenessEntry,
   type LivenessStatus,
