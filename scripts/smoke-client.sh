@@ -18,8 +18,8 @@ cat > package.json <<'EOF'
 }
 EOF
 
-echo "→ installing @weavo/client@2.0.1 from npm…"
-npm install --no-fund --no-audit @weavo/client@2.0.1
+echo "→ installing @weavo/client@2.0.2 from npm…"
+npm install --no-fund --no-audit @weavo/client@2.0.2
 
 node -e '
 const pkg = require("./node_modules/@weavo/client/package.json");

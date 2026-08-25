@@ -1,6 +1,6 @@
 {
   "name": "@weavo/membership",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CASPaxos membership, presence, liveness, and GC frontier for Weavo",
   "keywords": [
     "weavo",
@@ -43,7 +43,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@weavo/core": "^2.0.0"
+    "@weavo/core": "^2.0.1"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
