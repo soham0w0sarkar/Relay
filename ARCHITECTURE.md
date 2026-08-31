@@ -273,7 +273,15 @@ Rule we landed on:
 | Liveness `lastSeen` | Local receive time | Suspect / remove after silence |
 | Presence `receivedAt` | Local receive time | Evict stale UI entries |
 
-`weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Cursor offsets only refresh when a heartbeat arrives, so remote carets step at the heartbeat interval unless something else transforms them. Leave is the durable path: graceful `LEAVE` or silence past the removal timeout proposes `removeMember` on the same prepare → accept → commit spine.
+`weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Leave is the durable path: graceful `LEAVE` or silence past the removal timeout proposes `removeMember` on the same prepare → accept → commit spine.
+
+### Carets ride ops, not just heartbeats
+
+Refreshing cursors only on heartbeats makes a remote caret visibly trail the text it is typing — the character lands instantly, the caret catches up a heartbeat later. So the client also nudges presence on arrival: when an insert from peer `P` applies at index `i`, it calls `membership.setCursor(P, i + 1)` and listeners fire. The author is read off the op's own `id`, so this is the client package's job, not the app's.
+
+The nudge deliberately does **not** touch `timestamp` or `receivedAt`. LWW ordering stays the sender's story — `P`'s next heartbeat, with a higher timestamp, overwrites the guess — and an op is not treated as proof of liveness. Deletes carry the *target's* id rather than the deleter's, so they cannot be attributed; those carets still wait for a heartbeat. Peers who are not the author also drift by the length of the change until their next heartbeat.
+
+One knock-on: presence listeners now fire per remote keystroke, and tombstone GC hangs off that same callback. So the client sweeps only when the frontier actually moved (or candidates are still pending grace) instead of walking every node on each op.
 
 Heartbeats are tiny (~40 B frames) but frequent. A two-peer demo session is a few messages per second and hundreds of bytes per second — not enough to create network latency. Perceived lag over distance is RTT through the relay and heartbeat cadence, not the bytes.
 
