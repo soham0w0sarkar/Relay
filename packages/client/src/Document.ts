@@ -9,6 +9,7 @@ import {
   takeSnapshot,
   type ClientId,
   type DocumentSnapshot,
+  type GCFrontier,
   type Operation,
 } from "@weavo/core";
 import {
@@ -135,8 +136,21 @@ export const createWeavo = (
   const gcGracePeriodMs =
     options.gcGracePeriodMs ?? options.removalTimeoutMs ?? 30_000;
 
+  let lastFrontier: GCFrontier = new Map();
+
+  const frontierMoved = (next: GCFrontier) => {
+    if (next.size !== lastFrontier.size) return true;
+    for (const [id, clock] of next) {
+      if (lastFrontier.get(id) !== clock) return true;
+    }
+    return false;
+  };
+
   const sweepGC = () => {
-    runGC(doc.store, membership.computeGCFrontier(), gcTracker, {
+    const frontier = membership.computeGCFrontier();
+    if (!frontierMoved(frontier) && gcTracker.candidates.size === 0) return;
+    lastFrontier = frontier;
+    runGC(doc.store, frontier, gcTracker, {
       gracePeriodMs: gcGracePeriodMs,
     });
   };
@@ -168,6 +182,13 @@ export const createWeavo = (
 
   const notifyOp = (op: Operation) => options.onOp?.(op);
 
+  const noteAuthorCursor = (op: Operation, index: number) => {
+    if (op.type !== "insert") return;
+    const author = op.id[0];
+    if (author === clientId) return;
+    membership.setCursor(author, index + 1);
+  };
+
   const onApplied = (op: Operation, index: number) => {
     notifyOp(op);
 
@@ -176,11 +197,13 @@ export const createWeavo = (
       composition.docStart = transformPosition(composition.docStart, change);
       composition.docEnd = transformPosition(composition.docEnd, change);
       emitChange(change);
+      noteAuthorCursor(op, index);
       return;
     }
 
     const prevText = boundEl?.value ?? "";
     applyRemoteToBound(prevText, getText(doc.store));
+    noteAuthorCursor(op, index);
   };
 
   const processLocalInput = (event: InputEvent, snapshot: InputSnapshot) => {

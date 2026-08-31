@@ -75,4 +75,57 @@ describe("presence heartbeats", () => {
     aliceEl.remove();
     bobEl.remove();
   });
+
+  test("an author's caret follows their ops without waiting for a heartbeat", async () => {
+    const room = new MemoryRoom();
+    const heartbeatIntervalMs = 400;
+
+    const alice = createWeavo(room.join(), {
+      clientId: ALICE,
+      foundingGraceMs: 0,
+      name: "Alice",
+      color: "#a00",
+      heartbeatIntervalMs,
+    });
+    const aliceEl = createTextarea();
+    alice.bind(aliceEl);
+    await waitUntilJoined(alice);
+
+    const bob = createWeavo(room.join(), {
+      clientId: BOB,
+      foundingGraceMs: 5_000,
+      name: "Bob",
+      color: "#00a",
+      heartbeatIntervalMs,
+    });
+    const bobEl = createTextarea();
+    bob.bind(bobEl);
+    await waitUntilJoined(bob);
+    await new Promise((resolve) => setTimeout(resolve, heartbeatIntervalMs + 50));
+
+    expect(alice.getPresence().get(BOB)?.cursor).toBe(0);
+
+    const notified: number[] = [];
+    const unsub = alice.onPresence((peers) => {
+      const seen = peers.get(BOB);
+      if (seen) notified.push(seen.cursor);
+    });
+
+    bobEl.focus();
+    bobEl.selectionStart = 0;
+    bobEl.selectionEnd = 0;
+    insertText(bobEl, "hello");
+
+    await flushMicrotasks();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(alice.getPresence().get(BOB)?.cursor).toBe(5);
+    expect(notified.at(-1)).toBe(5);
+
+    unsub();
+    alice.disconnect();
+    bob.disconnect();
+    aliceEl.remove();
+    bobEl.remove();
+  });
 });
