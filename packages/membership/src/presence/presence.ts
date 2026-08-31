@@ -33,6 +33,7 @@ export type PresenceTracker = {
   merge: (other: PresenceCRDT) => boolean;
   remove: (clientId: ClientId) => boolean;
   evictStale: (now?: number) => ClientId[];
+  setCursor: (clientId: ClientId, cursor: number) => boolean;
   snapshot: () => Map<ClientId, PeerPresence>;
   fromHeartbeat: (input: {
     clientId: ClientId;
@@ -81,6 +82,17 @@ export const evictStale = (
   return evicted;
 };
 
+export const setPresenceCursor = (
+  presence: PresenceCRDT,
+  clientId: ClientId,
+  cursor: number,
+): boolean => {
+  const entry = presence.get(clientId);
+  if (!entry || entry.cursor === cursor) return false;
+  presence.set(clientId, { ...entry, cursor });
+  return true;
+};
+
 export const toPeerPresence = (
   presence: PresenceCRDT,
 ): Map<ClientId, PeerPresence> => {
@@ -117,6 +129,8 @@ export const createPresenceTracker = (
     },
     remove: (clientId) => entries.delete(clientId),
     evictStale: (at = now()) => evictStale(entries, timeoutMs, at),
+    setCursor: (clientId, cursor) =>
+      setPresenceCursor(entries, clientId, cursor),
     snapshot: () => toPeerPresence(entries),
     fromHeartbeat: (input) =>
       update({

@@ -5,6 +5,7 @@ import {
   createPresenceTracker,
   evictStale,
   mergePresence,
+  setPresenceCursor,
   updatePresence,
   type PresenceEntry,
 } from "../../src/presence";
@@ -70,6 +71,28 @@ describe("presence LWW", () => {
 
     expect(evictStale(presence, 10_000, 11_000)).toEqual([BOB]);
     expect(presence.has(ALICE)).toBe(true);
+  });
+
+  test("setPresenceCursor moves a known peer without touching its timestamp", () => {
+    const presence = createPresence();
+    updatePresence(presence, entry(ALICE, 10, 1));
+
+    expect(setPresenceCursor(presence, ALICE, 5)).toBe(true);
+    expect(presence.get(ALICE)?.cursor).toBe(5);
+    expect(presence.get(ALICE)?.timestamp).toBe(10);
+
+    expect(setPresenceCursor(presence, ALICE, 5)).toBe(false);
+    expect(setPresenceCursor(presence, BOB, 3)).toBe(false);
+    expect(presence.has(BOB)).toBe(false);
+  });
+
+  test("a later heartbeat still wins over a cursor nudge", () => {
+    const presence = createPresence();
+    updatePresence(presence, entry(ALICE, 10, 1));
+    setPresenceCursor(presence, ALICE, 5);
+
+    expect(updatePresence(presence, entry(ALICE, 20, 9))).toBe(true);
+    expect(presence.get(ALICE)?.cursor).toBe(9);
   });
 });
 

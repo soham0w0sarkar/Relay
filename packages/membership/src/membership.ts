@@ -363,6 +363,9 @@ export const createMembership = (
       };
     },
     getPresence: () => presence.snapshot(),
+    setCursor: (id, cursor) => {
+      if (presence.setCursor(id, cursor)) notifyPresence();
+    },
     computeGCFrontier: () =>
       computeGCFrontier(
         getStateVector?.() ?? {},

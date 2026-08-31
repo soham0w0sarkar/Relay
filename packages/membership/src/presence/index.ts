@@ -3,6 +3,7 @@ export {
   createPresenceTracker,
   evictStale,
   mergePresence,
+  setPresenceCursor,
   toPeerPresence,
   updatePresence,
   type PeerPresence,

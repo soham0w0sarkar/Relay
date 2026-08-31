@@ -63,6 +63,7 @@ export type MembershipHandle = {
   isJoined: () => boolean;
   onJoined: (listener: (membership: Membership) => void) => () => void;
   getPresence: () => Map<ClientId, PeerPresence>;
+  setCursor: (clientId: ClientId, cursor: number) => void;
   computeGCFrontier: () => GCFrontier;
   onPresence: (
     listener: (presence: Map<ClientId, PeerPresence>) => void,

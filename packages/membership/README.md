@@ -15,7 +15,7 @@ npm install @weavo/membership
 ## What it owns
 
 - **Membership** — versioned UUID → `shortId` tables committed with prepare / accept / commit
-- **Presence** — LWW map of live peers (`cursor`, `name`, `color`) updated from `HEARTBEAT`s
+- **Presence** — LWW map of live peers (`cursor`, `name`, `color`) updated from `HEARTBEAT`s, with `setCursor` for between-heartbeat nudges
 - **Heartbeats** — ~2s broadcast after join; carries presence plus piggybacked `membershipVersion` and state vector
 - **Liveness** — silent peers become suspect (~10s, presence dropped) then proposed for removal (~30s)
 - **Leave** — graceful `LEAVE` or ungraceful timeout → `removeMember` via the same consensus spine as join
